@@ -97,6 +97,34 @@ class DualKeyCacheImpl<FK, SK, V, T extends ICacheEntry<SK, V>>
   }
 
   @Override
+  public void computeLast(IDualKeyCacheComputation<FK, SK, V> computation) {
+    FK firstKey = computation.getFirstKey();
+    ICacheEntryGroup<FK, SK, V, T> cacheEntryGroup = firstKeyMap.get(firstKey);
+    SK[] secondKeyList = computation.getSecondKeyList();
+    if (cacheEntryGroup == null) {
+      for (int i = 0; i < secondKeyList.length; i++) {
+        computation.computeValue(i, null);
+      }
+      cacheStats.recordMiss(secondKeyList.length);
+    } else {
+      T cacheEntry;
+      int hitCount = 0;
+      for (int i = 0; i < secondKeyList.length; i++) {
+        cacheEntry = cacheEntryGroup.getCacheEntry(secondKeyList[i]);
+        if (cacheEntry == null) {
+          computation.computeValue(i, null);
+        } else {
+          computation.computeValue(i, cacheEntry.getValue());
+          cacheEntryManager.access(cacheEntry);
+          hitCount++;
+        }
+      }
+      cacheStats.recordHit(hitCount);
+      cacheStats.recordMiss(secondKeyList.length - hitCount);
+    }
+  }
+
+  @Override
   public void put(FK firstKey, SK secondKey, V value) {
     int usedMemorySize = putToCache(firstKey, secondKey, value);
     cacheStats.increaseMemoryUsage(usedMemorySize);

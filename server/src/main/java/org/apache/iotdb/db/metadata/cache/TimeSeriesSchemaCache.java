@@ -215,7 +215,7 @@ public class TimeSeriesSchemaCache {
       Long latestFlushedTime) {
     SchemaCacheEntry entry;
     List<Integer> missingMeasurements = new ArrayList<>();
-    dualKeyCache.compute(
+    dualKeyCache.computeLast(
         new IDualKeyCacheComputation<PartialPath, String, SchemaCacheEntry>() {
           @Override
           public PartialPath getFirstKey() {

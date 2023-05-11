@@ -487,11 +487,11 @@ public class TsFileProcessor {
           continue;
         }
         // extending the column of aligned mem chunk
-        //        if (!alignedMemChunk.containsMeasurement(measurements[i])) {
-        //          memTableIncrement +=
-        //              (alignedMemChunk.alignedListSize() / PrimitiveArrayManager.ARRAY_SIZE + 1)
-        //                  * dataTypes[i].getDataTypeSize();
-        //        }
+        if (!alignedMemChunk.containsMeasurement(measurements[i])) {
+          memTableIncrement +=
+              (alignedMemChunk.alignedListSize() / PrimitiveArrayManager.ARRAY_SIZE + 1)
+                  * dataTypes[i].getDataTypeSize();
+        }
         // TEXT data mem size
         if (dataTypes[i] == TSDataType.TEXT && values[i] != null) {
           textDataIncrement += MemUtils.getBinarySize((Binary) values[i]);

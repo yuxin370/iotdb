@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -60,7 +59,7 @@ public class AlignedWritableMemChunk implements IWritableMemChunk {
   private static final Logger LOGGER = LoggerFactory.getLogger(AlignedWritableMemChunk.class);
 
   public AlignedWritableMemChunk(List<IMeasurementSchema> schemaList) {
-    this.measurementIndexMap = new LinkedHashMap<>();
+    this.measurementIndexMap = new HashMap<>();
     List<TSDataType> dataTypeList = new ArrayList<>();
     this.schemaList = schemaList;
     for (int i = 0; i < schemaList.size(); i++) {
@@ -71,7 +70,7 @@ public class AlignedWritableMemChunk implements IWritableMemChunk {
   }
 
   private AlignedWritableMemChunk(List<IMeasurementSchema> schemaList, AlignedTVList list) {
-    this.measurementIndexMap = new LinkedHashMap<>();
+    this.measurementIndexMap = new HashMap<>();
     this.schemaList = schemaList;
     for (int i = 0; i < schemaList.size(); i++) {
       measurementIndexMap.put(schemaList.get(i).getMeasurementId(), i);
