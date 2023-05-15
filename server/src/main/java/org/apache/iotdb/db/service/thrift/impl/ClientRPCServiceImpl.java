@@ -32,6 +32,7 @@ import org.apache.iotdb.db.auth.AuthorityChecker;
 import org.apache.iotdb.db.conf.IoTDBConfig;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
 import org.apache.iotdb.db.conf.OperationType;
+import org.apache.iotdb.db.metadata.cache.DataNodeMeasurementIdCache;
 import org.apache.iotdb.db.metadata.template.TemplateQueryType;
 import org.apache.iotdb.db.mpp.common.header.DatasetHeader;
 import org.apache.iotdb.db.mpp.plan.Coordinator;
@@ -1146,8 +1147,28 @@ public class ClientRPCServiceImpl implements IClientRPCServiceWithHandler {
       }
 
       // check whether measurement is legal according to syntax convention
-      req.setMeasurementsList(
-          PathUtils.checkIsLegalSingleMeasurementListsAndUpdate(req.getMeasurementsList()));
+
+      List<List<String>> measurementLists = req.getMeasurementsList();
+      List<List<String>> res = new ArrayList<>();
+      for (List<String> measurements : measurementLists) {
+        List<String> checkedList = new ArrayList<>();
+        for (String measurement : measurements) {
+          if (measurement == null) {
+            checkedList.add(null);
+          } else {
+            if (DataNodeMeasurementIdCache.getInstance().contains(measurement)) {
+              checkedList.add(measurement);
+            } else {
+              String checked = PathUtils.checkAndReturnSingleMeasurement(measurement);
+              DataNodeMeasurementIdCache.getInstance().getBytes(checked);
+              checkedList.add(measurement);
+            }
+          }
+        }
+        res.add(checkedList);
+      }
+
+      req.setMeasurementsList(res);
 
       // Step 1:  transfer from TSInsertRecordsReq to Statement
       InsertRowsStatement statement = StatementGenerator.createStatement(req);
