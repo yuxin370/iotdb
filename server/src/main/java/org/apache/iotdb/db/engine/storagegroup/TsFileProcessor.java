@@ -37,6 +37,7 @@ import org.apache.iotdb.db.engine.flush.NotifyFlushMemTable;
 import org.apache.iotdb.db.engine.memtable.AlignedWritableMemChunk;
 import org.apache.iotdb.db.engine.memtable.AlignedWritableMemChunkGroup;
 import org.apache.iotdb.db.engine.memtable.IMemTable;
+import org.apache.iotdb.db.engine.memtable.IWritableMemChunkGroup;
 import org.apache.iotdb.db.engine.modification.Deletion;
 import org.apache.iotdb.db.engine.modification.Modification;
 import org.apache.iotdb.db.engine.querycontext.ReadOnlyMemChunk;
@@ -453,14 +454,26 @@ public class TsFileProcessor {
     AlignedWritableMemChunk alignedMemChunk = null;
     // get device id
     IDeviceID deviceID = getDeviceID(deviceId);
+    IWritableMemChunkGroup memChunkGroup = workMemTable.getMemTableMap().get(deviceID);
 
-    if (workMemTable.checkIfChunkDoesNotExist(deviceID, AlignedPath.VECTOR_PLACEHOLDER)) {
+    if (memChunkGroup == null) {
       // ChunkMetadataIncrement
       chunkMetadataIncrement +=
           ChunkMetadata.calculateRamSize(AlignedPath.VECTOR_PLACEHOLDER, TSDataType.VECTOR)
               * dataTypes.length;
       memTableIncrement += AlignedTVList.alignedTvListArrayMemCost(dataTypes);
+      for (int i = 0; i < dataTypes.length; i++) {
+        // skip failed Measurements
+        if (dataTypes[i] == null || measurements[i] == null) {
+          continue;
+        }
+        // TEXT data mem size
+        if (dataTypes[i] == TSDataType.TEXT && values[i] != null) {
+          textDataIncrement += MemUtils.getBinarySize((Binary) values[i]);
+        }
+      }
     } else {
+      alignedMemChunk = ((AlignedWritableMemChunkGroup) memChunkGroup).getAlignedMemChunk();
       // here currentChunkPointNum >= 1
       long currentChunkPointNum =
           workMemTable.getCurrentTVListSize(deviceID, AlignedPath.VECTOR_PLACEHOLDER);
@@ -468,24 +481,21 @@ public class TsFileProcessor {
           (currentChunkPointNum % PrimitiveArrayManager.ARRAY_SIZE) == 0
               ? AlignedTVList.alignedTvListArrayMemCost(dataTypes)
               : 0;
-      alignedMemChunk =
-          ((AlignedWritableMemChunkGroup) workMemTable.getMemTableMap().get(deviceID))
-              .getAlignedMemChunk();
-    }
-    for (int i = 0; i < dataTypes.length; i++) {
-      // skip failed Measurements
-      if (dataTypes[i] == null || measurements[i] == null) {
-        continue;
-      }
-      // extending the column of aligned mem chunk
-      if (alignedMemChunk != null && !alignedMemChunk.containsMeasurement(measurements[i])) {
-        memTableIncrement +=
-            (alignedMemChunk.alignedListSize() / PrimitiveArrayManager.ARRAY_SIZE + 1)
-                * dataTypes[i].getDataTypeSize();
-      }
-      // TEXT data mem size
-      if (dataTypes[i] == TSDataType.TEXT && values[i] != null) {
-        textDataIncrement += MemUtils.getBinarySize((Binary) values[i]);
+      for (int i = 0; i < dataTypes.length; i++) {
+        // skip failed Measurements
+        if (dataTypes[i] == null || measurements[i] == null) {
+          continue;
+        }
+        // extending the column of aligned mem chunk
+        if (!alignedMemChunk.containsMeasurement(measurements[i])) {
+          memTableIncrement +=
+              (alignedMemChunk.alignedListSize() / PrimitiveArrayManager.ARRAY_SIZE + 1)
+                  * dataTypes[i].getDataTypeSize();
+        }
+        // TEXT data mem size
+        if (dataTypes[i] == TSDataType.TEXT && values[i] != null) {
+          textDataIncrement += MemUtils.getBinarySize((Binary) values[i]);
+        }
       }
     }
     updateMemoryInfo(memTableIncrement, chunkMetadataIncrement, textDataIncrement);
