@@ -44,7 +44,11 @@ public class DataNodeMeasurementIdCache {
   }
 
   public boolean contains(String measurementId) {
-    return null != measurementIdCache.getIfPresent(measurementId);
+    return null != measurementIdCache.get(measurementId, k -> null);
+  }
+
+  public void put(String measurementId) {
+    measurementIdCache.put(measurementId, measurementId.getBytes());
   }
 
   public byte[] getBytes(String measurementId) {

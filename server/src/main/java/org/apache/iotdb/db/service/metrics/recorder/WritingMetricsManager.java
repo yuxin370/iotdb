@@ -26,11 +26,14 @@ import org.apache.iotdb.commons.service.metric.enums.Tag;
 import org.apache.iotdb.db.engine.storagegroup.DataRegion;
 import org.apache.iotdb.db.service.metrics.WritingMetrics;
 import org.apache.iotdb.db.wal.checkpoint.CheckpointType;
+import org.apache.iotdb.metrics.config.MetricConfigDescriptor;
 import org.apache.iotdb.metrics.utils.MetricLevel;
 import org.apache.iotdb.metrics.utils.MetricType;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.iotdb.metrics.utils.MetricLevel.DO_NOTHING;
 
 public class WritingMetricsManager {
   public static final WritingMetricsManager INSTANCE = new WritingMetricsManager();
@@ -286,16 +289,19 @@ public class WritingMetricsManager {
   }
 
   public void recordSerializeOneWALInfoEntryCost(long costTimeInNanos) {
-    MetricService.getInstance()
-        .timer(
-            costTimeInNanos,
-            TimeUnit.NANOSECONDS,
-            Metric.WAL_COST.toString(),
-            MetricLevel.IMPORTANT,
-            Tag.STAGE.toString(),
-            WritingMetrics.SERIALIZE_WAL_ENTRY,
-            Tag.TYPE.toString(),
-            WritingMetrics.SERIALIZE_ONE_WAL_INFO_ENTRY);
+    if (!DO_NOTHING.equals(
+        MetricConfigDescriptor.getInstance().getMetricConfig().getMetricLevel())) {
+      MetricService.getInstance()
+          .timer(
+              costTimeInNanos,
+              TimeUnit.NANOSECONDS,
+              Metric.WAL_COST.toString(),
+              MetricLevel.IMPORTANT,
+              Tag.STAGE.toString(),
+              WritingMetrics.SERIALIZE_WAL_ENTRY,
+              Tag.TYPE.toString(),
+              WritingMetrics.SERIALIZE_ONE_WAL_INFO_ENTRY);
+    }
   }
 
   public void recordSerializeWALEntryTotalCost(long costTimeInNanos) {

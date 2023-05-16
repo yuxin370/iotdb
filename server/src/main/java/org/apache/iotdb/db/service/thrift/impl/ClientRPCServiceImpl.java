@@ -1160,8 +1160,8 @@ public class ClientRPCServiceImpl implements IClientRPCServiceWithHandler {
               checkedList.add(measurement);
             } else {
               String checked = PathUtils.checkAndReturnSingleMeasurement(measurement);
-              DataNodeMeasurementIdCache.getInstance().getBytes(checked);
-              checkedList.add(measurement);
+              DataNodeMeasurementIdCache.getInstance().put(checked);
+              checkedList.add(checked);
             }
           }
         }
