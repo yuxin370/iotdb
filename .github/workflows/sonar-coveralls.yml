@@ -61,6 +61,7 @@ jobs:
         with:
           github-token: ${{ secrets.COVERALL_TOKEN }}
           file: code-coverage/target/jacoco-merged-reports/jacoco.xml
+          base-path: .
           flag-name: run-${{ matrix.task }}
           parallel: true
 
