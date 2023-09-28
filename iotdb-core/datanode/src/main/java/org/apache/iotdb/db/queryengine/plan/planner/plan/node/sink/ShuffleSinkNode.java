@@ -45,13 +45,6 @@ public class ShuffleSinkNode extends MultiChildrenSinkNode {
     super(id, downStreamChannelLocationList);
   }
 
-  public ShuffleSinkNode(
-      PlanNodeId id,
-      List<PlanNode> children,
-      List<DownStreamChannelLocation> downStreamChannelLocationList) {
-    super(id, children, downStreamChannelLocationList);
-  }
-
   @Override
   public PlanNode clone() {
     return new ShuffleSinkNode(getPlanNodeId(), getDownStreamChannelLocationList());

@@ -351,8 +351,6 @@ public class LogicalPlanBuilder {
     for (Map.Entry<Expression, List<Expression>> entry :
         analysis.getLastQueryNonWritableViewSourceExpressionMap().entrySet()) {
       Expression expression = entry.getKey();
-      Set<Expression> sourceExpressions = new LinkedHashSet<>(entry.getValue());
-      Set<Expression> sourceTransformExpressions = Collections.singleton(expression);
       FunctionExpression maxTimeAgg =
           new FunctionExpression(
               MAX_TIME, new LinkedHashMap<>(), Collections.singletonList(expression));
@@ -363,6 +361,8 @@ public class LogicalPlanBuilder {
       analyzeExpression(analysis, maxTimeAgg);
       analyzeExpression(analysis, lastValueAgg);
 
+      Set<Expression> sourceExpressions = new LinkedHashSet<>(entry.getValue());
+      Set<Expression> sourceTransformExpressions = Collections.singleton(expression);
       LogicalPlanBuilder planBuilder = new LogicalPlanBuilder(analysis, context);
       planBuilder =
           planBuilder
