@@ -40,4 +40,9 @@ public class IsNullColumnTransformer extends UnaryColumnTransformer {
       returnType.writeBoolean(columnBuilder, column.isNull(i) ^ isNot);
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new IsNullColumnTransformer(returnType, childColumnTransformer.cloneObject(), isNot);
+  }
 }

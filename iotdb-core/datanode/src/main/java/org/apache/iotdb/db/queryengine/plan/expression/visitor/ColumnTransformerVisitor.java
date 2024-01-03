@@ -564,7 +564,13 @@ public class ColumnTransformerVisitor
 
     public TSDataType getType(Expression expression) {
       if (typeProvider != null) {
-        return typeProvider.getType(expression.getOutputSymbol());
+        //        System.out.println(
+        //            expression.getOutputSymbol()
+        //                + "  --- "
+        //                +
+        // typeProvider.getTemplatedInfo().expressionTypes.get(NodeRef.of(expression)));
+        //        return typeProvider.getType(expression.getOutputSymbol());
+        return typeProvider.getTemplatedInfo().expressionTypes.get(NodeRef.of(expression));
       }
       return expressionTypes.get(NodeRef.of(expression));
     }

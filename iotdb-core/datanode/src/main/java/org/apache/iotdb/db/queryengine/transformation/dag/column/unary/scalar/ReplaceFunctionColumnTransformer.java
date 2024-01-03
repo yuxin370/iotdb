@@ -55,4 +55,9 @@ public class ReplaceFunctionColumnTransformer extends UnaryColumnTransformer {
       }
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new ReplaceFunctionColumnTransformer(returnType, childColumnTransformer, from, to);
+  }
 }

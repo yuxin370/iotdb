@@ -217,10 +217,19 @@ public class QueryExecution implements IQueryExecution {
       return;
     }
 
+    long currentTime = System.nanoTime();
     // check timeout for query first
     checkTimeOutForQuery();
     doLogicalPlan();
+    logger.warn(
+        "============== coordinator doLogicalPlan: {}ms", (System.nanoTime() - currentTime) / 1e6);
+
+    currentTime = System.nanoTime();
     doDistributedPlan();
+    logger.warn(
+        "============== coordinator doDistributedPlan: {}ms",
+        (System.nanoTime() - currentTime) / 1e6);
+    currentTime = System.nanoTime();
 
     // update timeout after finishing plan stage
     context.setTimeOut(
@@ -232,7 +241,8 @@ public class QueryExecution implements IQueryExecution {
     }
     PERFORMANCE_OVERVIEW_METRICS.recordPlanCost(System.nanoTime() - startTime);
     schedule();
-
+    logger.warn(
+        "============== coordinator schedule: {}ms", (System.nanoTime() - currentTime) / 1e6);
     // set partial insert error message
     // When some columns in one insert failed, other column will continue executing insertion.
     // The error message should be return to client, therefore we need to set it after the insertion
@@ -240,6 +250,7 @@ public class QueryExecution implements IQueryExecution {
     if (context.getQueryType() == QueryType.WRITE && analysis.isFailed()) {
       stateMachine.transitionToFailed(analysis.getFailStatus());
     }
+    logger.warn("============== coordinator fe time: {}ms", (System.nanoTime() - startTime) / 1e6);
   }
 
   private void checkTimeOutForQuery() {

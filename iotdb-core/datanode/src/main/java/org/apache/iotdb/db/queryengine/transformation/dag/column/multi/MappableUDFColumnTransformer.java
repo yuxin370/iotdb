@@ -72,4 +72,9 @@ public class MappableUDFColumnTransformer extends ColumnTransformer {
     // finalize executor
     executor.beforeDestroy();
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new MappableUDFColumnTransformer(returnType, inputColumnTransformers, executor);
+  }
 }

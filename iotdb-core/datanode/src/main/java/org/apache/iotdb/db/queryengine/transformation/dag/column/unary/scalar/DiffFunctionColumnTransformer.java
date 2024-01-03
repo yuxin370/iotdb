@@ -65,4 +65,10 @@ public class DiffFunctionColumnTransformer extends UnaryColumnTransformer {
       }
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new DiffFunctionColumnTransformer(
+        returnType, childColumnTransformer.cloneObject(), ignoreNull);
+  }
 }

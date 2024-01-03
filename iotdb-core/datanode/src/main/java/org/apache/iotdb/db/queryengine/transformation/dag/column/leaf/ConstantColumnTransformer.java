@@ -19,6 +19,7 @@
 
 package org.apache.iotdb.db.queryengine.transformation.dag.column.leaf;
 
+import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.RunLengthEncodedColumn;
@@ -36,5 +37,19 @@ public class ConstantColumnTransformer extends LeafColumnTransformer {
   @Override
   public void initFromTsBlock(TsBlock input) {
     initializeColumnCache(new RunLengthEncodedColumn(value, input.getPositionCount()));
+  }
+
+  @Override
+  public LeafColumnTransformer cloneLeaf() {
+    ConstantColumnTransformer ret = new ConstantColumnTransformer(returnType, value);
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
+  }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    ConstantColumnTransformer ret = new ConstantColumnTransformer(returnType, value);
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
   }
 }

@@ -32,4 +32,13 @@ public class CompareGreaterThanColumnTransformer extends CompareBinaryColumnTran
   protected boolean transform(int flag) {
     return flag > 0;
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    CompareGreaterThanColumnTransformer ret =
+        new CompareGreaterThanColumnTransformer(
+            returnType, leftTransformer.cloneObject(), rightTransformer.cloneObject());
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
+  }
 }

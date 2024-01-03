@@ -39,4 +39,6 @@ public abstract class LeafColumnTransformer extends ColumnTransformer {
   }
 
   public abstract void initFromTsBlock(TsBlock input);
+
+  public abstract LeafColumnTransformer cloneLeaf();
 }

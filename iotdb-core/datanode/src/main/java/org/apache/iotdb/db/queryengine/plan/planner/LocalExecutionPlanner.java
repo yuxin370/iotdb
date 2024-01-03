@@ -69,7 +69,9 @@ public class LocalExecutionPlanner {
 
     // Generate pipelines, return the last pipeline data structure
     // TODO Replace operator with operatorFactory to build multiple driver for one pipeline
+    long startTime = System.currentTimeMillis();
     Operator root = plan.accept(new OperatorTreeGenerator(), context);
+    LOGGER.warn("----- LocalExecutionPlanner plan {}ms", System.currentTimeMillis() - startTime);
 
     // check whether current free memory is enough to execute current query
     long estimatedMemorySize = checkMemory(root, instanceContext.getStateMachine());

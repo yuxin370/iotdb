@@ -20,11 +20,14 @@
 package org.apache.iotdb.db.queryengine.transformation.dag.column;
 
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class ColumnCache {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(ColumnCache.class);
   private int referenceCount;
   private Column column;
 
@@ -34,6 +37,11 @@ public class ColumnCache {
 
   public Column getColumn() {
     referenceCount--;
+    if (column != null) {
+      LOGGER.warn("referenceCount: {}, column: {}, {}", referenceCount, column, column.getTsPrimitiveType(0));
+    } else {
+      LOGGER.warn("referenceCount: {}, column is null!", referenceCount);
+    }
     checkArgument(referenceCount >= 0, "Exceed max call times of getColumn");
     Column res = this.column;
     // set column to null for memory control

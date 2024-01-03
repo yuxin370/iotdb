@@ -48,4 +48,10 @@ public class ArithmeticNegationColumnTransformer extends UnaryColumnTransformer 
       throw new UnsupportedOperationException("Unsupported Type: " + returnType.toString());
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new ArithmeticNegationColumnTransformer(
+        returnType, childColumnTransformer.cloneObject());
+  }
 }

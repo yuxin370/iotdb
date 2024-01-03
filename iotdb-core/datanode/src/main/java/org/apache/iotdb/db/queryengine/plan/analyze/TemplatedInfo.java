@@ -19,9 +19,15 @@
 
 package org.apache.iotdb.db.queryengine.plan.analyze;
 
+import org.apache.iotdb.commons.path.MeasurementPath;
+import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.db.queryengine.common.NodeRef;
 import org.apache.iotdb.db.queryengine.plan.expression.Expression;
+import org.apache.iotdb.db.queryengine.plan.expression.leaf.TimeSeriesOperand;
 import org.apache.iotdb.db.queryengine.plan.planner.plan.parameter.InputLocation;
 import org.apache.iotdb.db.queryengine.plan.statement.component.Ordering;
+import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
+import org.apache.iotdb.db.queryengine.transformation.dag.column.leaf.LeafColumnTransformer;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 import org.apache.iotdb.tsfile.write.schema.IMeasurementSchema;
@@ -39,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.iotdb.db.queryengine.plan.expression.leaf.TimestampOperand.TIMESTAMP_EXPRESSION_STRING;
 
@@ -57,14 +64,82 @@ public class TemplatedInfo {
   private List<Integer> deviceToMeasurementIndexes;
   private final long offsetValue;
   private long limitValue;
-  // these variables below are use in value filter condition
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  // These variables below are use in value filter condition
+  /////////////////////////////////////////////////////////////////////////////////////////////////
   private final Expression predicate;
   private ZoneId zoneId;
   private boolean keepNull;
-  // not serialize
+  // this variable is no need to serialize
   private Map<String, IMeasurementSchema> schemaMap;
-  // not serialize
+  // this variable is no need to serialize
   private Map<String, List<InputLocation>> layoutMap;
+  // this variable is no need to serialize
+  private Expression[] projectExpressions;
+
+  public Map<NodeRef<Expression>, TSDataType> expressionTypes;
+
+  private ColumnInfo columnInfo;
+
+  public static class ColumnInfo {
+    public List<LeafColumnTransformer> filterLeafColumnTransformerList;
+    public ColumnTransformer filterOutputTransformer;
+    public List<ColumnTransformer> commonTransformerList;
+    public List<LeafColumnTransformer> projectLeafColumnTransformerList;
+    public List<ColumnTransformer> projectOutputTransformerList;
+
+    public ColumnInfo(
+        List<LeafColumnTransformer> filterLeafColumnTransformerList,
+        ColumnTransformer filterOutputTransformer,
+        List<ColumnTransformer> commonTransformerList,
+        List<LeafColumnTransformer> projectLeafColumnTransformerList,
+        List<ColumnTransformer> projectOutputTransformerList) {
+
+      this.filterLeafColumnTransformerList = filterLeafColumnTransformerList;
+      this.filterOutputTransformer = filterOutputTransformer;
+      this.commonTransformerList = commonTransformerList;
+      this.projectLeafColumnTransformerList = projectLeafColumnTransformerList;
+      this.projectOutputTransformerList = projectOutputTransformerList;
+    }
+  }
+
+  public synchronized void setColumn(
+      List<LeafColumnTransformer> filterLeafColumnTransformerList,
+      ColumnTransformer filterOutputTransformer,
+      List<ColumnTransformer> commonTransformerList,
+      List<LeafColumnTransformer> projectLeafColumnTransformerList,
+      List<ColumnTransformer> projectOutputTransformerList) {
+
+    this.columnInfo =
+        new ColumnInfo(
+            filterLeafColumnTransformerList,
+            filterOutputTransformer,
+            commonTransformerList,
+            projectLeafColumnTransformerList,
+            projectOutputTransformerList);
+  }
+
+  public synchronized ColumnInfo getColumnInfo() {
+    if (this.columnInfo == null) {
+      return null;
+    }
+
+    return new ColumnInfo(
+        this.columnInfo.filterLeafColumnTransformerList.stream()
+            .map(LeafColumnTransformer::cloneLeaf)
+            .collect(Collectors.toList()),
+        this.columnInfo.filterOutputTransformer.cloneObject(),
+        this.columnInfo.commonTransformerList.stream()
+            .map(ColumnTransformer::cloneObject)
+            .collect(Collectors.toList()),
+        this.columnInfo.projectLeafColumnTransformerList.stream()
+            .map(LeafColumnTransformer::cloneLeaf)
+            .collect(Collectors.toList()),
+        this.columnInfo.projectOutputTransformerList.stream()
+            .map(ColumnTransformer::cloneObject)
+            .collect(Collectors.toList()));
+  }
 
   public TemplatedInfo(
       List<String> measurementList,
@@ -96,8 +171,24 @@ public class TemplatedInfo {
       this.zoneId = zoneId;
       this.schemaMap = schemaMap;
       this.layoutMap = layoutMap;
+
+      projectExpressions = new Expression[measurementList.size()];
+      for (int i = 0; i < measurementList.size(); i++) {
+        projectExpressions[i] =
+            new TimeSeriesOperand(
+                new MeasurementPath(
+                    new PartialPath(new String[] {measurementList.get(i)}), schemaList.get(i)));
+      }
+
+      expressionTypes = new HashMap<>();
+      ExpressionTypeAnalyzer.analyzeExpression(expressionTypes, predicate, schemaMap);
+      for (Expression projectExpression : projectExpressions) {
+        ExpressionTypeAnalyzer.analyzeExpression(expressionTypes, projectExpression, schemaMap);
+      }
     }
   }
+
+  private void init() {}
 
   public void setMeasurementList(List<String> measurementList) {
     this.measurementList = measurementList;
@@ -193,6 +284,10 @@ public class TemplatedInfo {
 
   public Map<String, List<InputLocation>> getLayoutMap() {
     return this.layoutMap;
+  }
+
+  public Expression[] getProjectExpressions() {
+    return this.projectExpressions;
   }
 
   public static Map<String, List<InputLocation>> makeLayout(List<String> measurementList) {

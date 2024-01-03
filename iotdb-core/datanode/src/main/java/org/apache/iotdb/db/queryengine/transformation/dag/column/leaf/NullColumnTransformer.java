@@ -19,6 +19,7 @@
 
 package org.apache.iotdb.db.queryengine.transformation.dag.column.leaf;
 
+import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.NullColumn;
 
@@ -36,5 +37,19 @@ public class NullColumnTransformer extends LeafColumnTransformer {
   @Override
   public void initFromTsBlock(TsBlock input) {
     initializeColumnCache(new NullColumn(input.getPositionCount()));
+  }
+
+  @Override
+  public LeafColumnTransformer cloneLeaf() {
+    NullColumnTransformer ret = new NullColumnTransformer();
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
+  }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    NullColumnTransformer ret = new NullColumnTransformer();
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
   }
 }

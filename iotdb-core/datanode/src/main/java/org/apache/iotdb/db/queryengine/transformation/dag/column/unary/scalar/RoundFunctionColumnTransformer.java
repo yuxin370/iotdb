@@ -69,4 +69,10 @@ public class RoundFunctionColumnTransformer extends UnaryColumnTransformer {
       }
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new RoundFunctionColumnTransformer(
+        returnType, childColumnTransformer.cloneObject(), places);
+  }
 }

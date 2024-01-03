@@ -19,6 +19,7 @@
 
 package org.apache.iotdb.db.queryengine.transformation.dag.column.leaf;
 
+import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
@@ -30,5 +31,19 @@ public class TimeColumnTransformer extends LeafColumnTransformer {
   @Override
   public void initFromTsBlock(TsBlock input) {
     initializeColumnCache(input.getTimeColumn());
+  }
+
+  @Override
+  public LeafColumnTransformer cloneLeaf() {
+    TimeColumnTransformer ret = new TimeColumnTransformer(returnType);
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
+  }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    TimeColumnTransformer ret = new TimeColumnTransformer(returnType);
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
   }
 }

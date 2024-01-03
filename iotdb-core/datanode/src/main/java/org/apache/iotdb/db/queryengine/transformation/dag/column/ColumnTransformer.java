@@ -107,6 +107,16 @@ public abstract class ColumnTransformer {
 
   protected abstract void checkType();
 
+  public int getReferenceCount() {
+    return this.referenceCount;
+  }
+
+  public void setReferenceCount(int referenceCount) {
+    this.referenceCount = referenceCount;
+  }
+
+  public abstract ColumnTransformer cloneObject();
+
   public void close() {
     // do nothing
   }

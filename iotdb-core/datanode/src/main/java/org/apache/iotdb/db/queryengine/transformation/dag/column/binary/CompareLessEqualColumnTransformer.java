@@ -32,4 +32,10 @@ public class CompareLessEqualColumnTransformer extends CompareBinaryColumnTransf
   protected boolean transform(int flag) {
     return flag <= 0;
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new CompareLessEqualColumnTransformer(
+        returnType, leftTransformer.cloneObject(), rightTransformer.cloneObject());
+  }
 }

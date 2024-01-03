@@ -63,4 +63,9 @@ public class RegularColumnTransformer extends UnaryColumnTransformer {
           "Unsupported Type: " + childColumnTransformer.getType().getTypeEnum());
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new RegularColumnTransformer(returnType, childColumnTransformer.cloneObject(), pattern);
+  }
 }

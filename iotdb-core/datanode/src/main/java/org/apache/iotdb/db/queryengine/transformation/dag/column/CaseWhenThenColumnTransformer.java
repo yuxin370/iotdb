@@ -129,4 +129,9 @@ public class CaseWhenThenColumnTransformer extends ColumnTransformer {
   protected void checkType() {
     // do nothing
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new CaseWhenThenColumnTransformer(returnType, null, null, null);
+  }
 }

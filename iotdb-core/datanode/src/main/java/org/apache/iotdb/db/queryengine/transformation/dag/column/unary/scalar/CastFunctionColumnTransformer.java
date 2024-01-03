@@ -225,4 +225,9 @@ public class CastFunctionColumnTransformer extends UnaryColumnTransformer {
         throw new UnsupportedOperationException(String.format(ERROR_MSG, returnType.getTypeEnum()));
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new CastFunctionColumnTransformer(returnType, childColumnTransformer.cloneObject());
+  }
 }

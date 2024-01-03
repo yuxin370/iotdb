@@ -61,4 +61,10 @@ public class SubStringFunctionColumnTransformer extends UnaryColumnTransformer {
       }
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new SubStringFunctionColumnTransformer(
+        returnType, childColumnTransformer.cloneObject(), beginPosition, 0);
+  }
 }

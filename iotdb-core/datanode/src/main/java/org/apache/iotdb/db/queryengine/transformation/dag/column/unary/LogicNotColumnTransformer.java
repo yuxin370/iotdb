@@ -49,4 +49,9 @@ public class LogicNotColumnTransformer extends UnaryColumnTransformer {
           "Unsupported Type: " + childColumnTransformer.getType().getTypeEnum());
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new LogicNotColumnTransformer(returnType, childColumnTransformer.cloneObject());
+  }
 }

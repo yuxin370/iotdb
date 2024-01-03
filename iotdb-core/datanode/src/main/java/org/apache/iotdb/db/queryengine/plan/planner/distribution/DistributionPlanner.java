@@ -44,6 +44,8 @@ import org.apache.iotdb.db.queryengine.plan.statement.component.OrderByComponent
 import org.apache.iotdb.db.queryengine.plan.statement.crud.QueryStatement;
 
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -191,8 +193,14 @@ public class DistributionPlanner {
     return fragmentBuilder.splitToSubPlan(root);
   }
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(DistributionPlanner.class);
+
   public DistributedQueryPlan planFragments() {
+    long startTime = System.currentTimeMillis();
     PlanNode rootAfterRewrite = rewriteSource();
+    LOGGER.warn(
+        "----- doDistributePlan rewriteSource {}ms", System.currentTimeMillis() - startTime);
+    startTime = System.currentTimeMillis();
 
     PlanNode rootWithExchange = addExchangeNode(rootAfterRewrite);
     PlanNode optimizedRootWithExchange = optimize(rootWithExchange);
@@ -201,10 +209,22 @@ public class DistributionPlanner {
           .getRespDatasetHeader()
           .setColumnToTsBlockIndexMap(optimizedRootWithExchange.getOutputColumnNames());
     }
+    LOGGER.warn(
+        "----- doDistributePlan addExchangeNode {}ms", System.currentTimeMillis() - startTime);
+    startTime = System.currentTimeMillis();
+
     SubPlan subPlan = splitFragment(optimizedRootWithExchange);
     // Mark the root Fragment of root SubPlan as `root`
     subPlan.getPlanFragment().setRoot(true);
+    LOGGER.warn(
+        "----- doDistributePlan splitFragment {}ms", System.currentTimeMillis() - startTime);
+    startTime = System.currentTimeMillis();
+
     List<FragmentInstance> fragmentInstances = planFragmentInstances(subPlan);
+    LOGGER.warn(
+        "----- doDistributePlan planFragmentInstances {}ms",
+        System.currentTimeMillis() - startTime);
+
     // Only execute this step for READ operation
     if (context.getQueryType() == QueryType.READ) {
       setSinkForRootInstance(subPlan, fragmentInstances);

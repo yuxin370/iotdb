@@ -78,4 +78,14 @@ public class BetweenColumnTransformer extends CompareTernaryColumnTransformer {
       }
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new BetweenColumnTransformer(
+        returnType,
+        firstColumnTransformer.cloneObject(),
+        secondColumnTransformer.cloneObject(),
+        thirdColumnTransformer.cloneObject(),
+        isNotBetween);
+  }
 }

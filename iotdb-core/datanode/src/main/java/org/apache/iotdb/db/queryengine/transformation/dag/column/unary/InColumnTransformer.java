@@ -239,4 +239,16 @@ public class InColumnTransformer extends UnaryColumnTransformer {
       return !stringSet.contains(stringValue);
     }
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    InColumnTransformer ret =
+        new InColumnTransformer(
+            returnType,
+            childColumnTransformer.cloneObject(),
+            satisfy instanceof NotInSatisfy,
+            null);
+
+    return ret;
+  }
 }

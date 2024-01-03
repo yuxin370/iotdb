@@ -20,6 +20,7 @@
 package org.apache.iotdb.db.queryengine.transformation.dag.column.binary;
 
 import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
+import org.apache.iotdb.db.queryengine.transformation.dag.column.leaf.NullColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
 public class ArithmeticModuloColumnTransformer extends ArithmeticBinaryColumnTransformer {
@@ -31,5 +32,10 @@ public class ArithmeticModuloColumnTransformer extends ArithmeticBinaryColumnTra
   @Override
   protected double transform(double d1, double d2) {
     return d1 % d2;
+  }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    return new NullColumnTransformer();
   }
 }

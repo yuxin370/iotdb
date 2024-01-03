@@ -62,4 +62,13 @@ public class LogicAndColumnTransformer extends LogicBinaryColumnTransformer {
   protected boolean transform(boolean left, boolean right) {
     return left && right;
   }
+
+  @Override
+  public ColumnTransformer cloneObject() {
+    LogicAndColumnTransformer ret =
+        new LogicAndColumnTransformer(
+            returnType, leftTransformer.cloneObject(), rightTransformer.cloneObject());
+    ret.setReferenceCount(this.referenceCount);
+    return ret;
+  }
 }
