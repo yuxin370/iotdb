@@ -17,6 +17,7 @@ on:
     branches:
       - master
       - "rel/*"
+      - mac-arm64-ci
     paths-ignore:
       - 'docs/**'
       - 'site/**'
@@ -36,7 +37,7 @@ jobs:
       fail-fast: false
       max-parallel: 20
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-13-arm64]
     runs-on: ${{ matrix.os}}
 
     steps:
