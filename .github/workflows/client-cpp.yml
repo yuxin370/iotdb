@@ -10,6 +10,7 @@ on:
     branches:
       - master
       - "rel/*"
+      - mac-arm64-ci
     paths-ignore:
       - 'docs/**'
       - 'site/**'
