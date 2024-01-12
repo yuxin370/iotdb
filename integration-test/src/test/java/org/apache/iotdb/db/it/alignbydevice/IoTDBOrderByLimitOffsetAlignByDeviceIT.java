@@ -87,7 +87,7 @@ public class IoTDBOrderByLimitOffsetAlignByDeviceIT {
 
   @Test
   public void aggregationWithHavingTest() {
-    // when aggregation with having, can only use MergeSortNode but not use TopKNode
+    // aggregation with having can not use TopKNode
     String[] expectedHeader = new String[] {"Time,Device,sum(s1)"};
     String[] retArray = new String[] {"3,root.db.d2,222.0,", "3,root.db.d3,333.0,"};
     resultSetEqualTest(
@@ -98,6 +98,7 @@ public class IoTDBOrderByLimitOffsetAlignByDeviceIT {
 
   @Test
   public void fillTest() {
+    // linear fill can not use TopKNode
     String[] expectedHeader = new String[] {"Time,Device,s1,s2"};
     String[] retArray =
         new String[] {
