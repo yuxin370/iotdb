@@ -811,6 +811,7 @@ public class LogicalPlanBuilder {
           -1);
       this.root = mergeSortNode;
     } else {
+      // order by based on device, use DeviceViewNode
       this.root =
           addDeviceViewNode(
               orderByParameter,
@@ -851,7 +852,7 @@ public class LogicalPlanBuilder {
         && (!queryStatement.isAggregationQuery()
             || (queryStatement.isAggregationQuery() && !queryStatement.hasHaving()))
         && (!queryStatement.hasFill()
-            || LINEAR.equals(queryStatement.getFillComponent().getFillPolicy()));
+            || !LINEAR.equals(queryStatement.getFillComponent().getFillPolicy()));
   }
 
   private boolean canUseMergeSortNode(QueryStatement queryStatement, int deviceSize) {
