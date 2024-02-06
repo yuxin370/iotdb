@@ -48,13 +48,13 @@ jobs:
         shell: bash
         run: sudo apt-get update && sudo apt-get install libboost-all-dev
       - name: Install CPP Dependencies (Mac)`
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-14'
         shell: bash
         run: |
           brew install boost
           brew install bison
-          echo 'export PATH="/usr/local/opt/bison/bin:$PATH"' >> ~/.bash_profile
-          source ~/.bash_profile && export LDFLAGS="-L/usr/local/opt/bison/lib"
+          echo 'export PATH="/opt/homebrew/opt/bison/bin:$PATH"' >> ~/.bash_profile
+          source ~/.bash_profile && export LDFLAGS="-L/opt/homebrew/opt/bison/lib"
           brew install openssl
       - name: Cache Maven packages
         uses: actions/cache@v3
