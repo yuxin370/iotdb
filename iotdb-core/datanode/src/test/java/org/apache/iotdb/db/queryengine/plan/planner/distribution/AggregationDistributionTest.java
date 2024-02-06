@@ -304,7 +304,8 @@ public class AggregationDistributionTest {
                         new TimeSeriesOperand(new PartialPath(d2s1Path))),
                     2,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPath)))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPath))))),
             null,
             Ordering.ASC);
     Analysis analysis = Util.constructAnalysis();
@@ -344,7 +345,8 @@ public class AggregationDistributionTest {
                         new TimeSeriesOperand(new PartialPath(d4s1Path))),
                     2,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPath)))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPath))))),
             null,
             Ordering.ASC);
     Analysis analysis = Util.constructAnalysis();
@@ -362,7 +364,17 @@ public class AggregationDistributionTest {
         f -> verifyAggregationStep(expectedStep, f.getFragment().getPlanNodeTree()));
 
     Map<String, List<String>> expectedDescriptorValue = new HashMap<>();
-    expectedDescriptorValue.put(groupedPath, Arrays.asList(groupedPath, d3s1Path, d4s1Path));
+    expectedDescriptorValue.put(groupedPath, Collections.singletonList(groupedPath));
+    assertTrue(
+        fragmentInstances
+                .get(0)
+                .getFragment()
+                .getPlanNodeTree()
+                .getChildren()
+                .get(0)
+                .getChildren()
+                .get(0)
+            instanceof GroupByLevelNode);
     verifyGroupByLevelDescriptor(
         expectedDescriptorValue,
         (GroupByLevelNode)
@@ -411,7 +423,8 @@ public class AggregationDistributionTest {
                         new TimeSeriesOperand(new PartialPath(d4s1Path))),
                     2,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPath)))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPath))))),
             null,
             Ordering.ASC);
 
@@ -493,14 +506,16 @@ public class AggregationDistributionTest {
                     Collections.singletonList(new TimeSeriesOperand(new PartialPath(d1s1Path))),
                     1,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPathS1))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPathS1)))),
                 new CrossSeriesAggregationDescriptor(
                     TAggregationType.COUNT.name().toLowerCase(),
                     AggregationStep.FINAL,
                     Collections.singletonList(new TimeSeriesOperand(new PartialPath(d1s2Path))),
                     1,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPathS2)))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPathS2))))),
             null,
             Ordering.ASC);
     Analysis analysis = Util.constructAnalysis();
@@ -518,8 +533,8 @@ public class AggregationDistributionTest {
         f -> verifyAggregationStep(expectedStep, f.getFragment().getPlanNodeTree()));
 
     Map<String, List<String>> expectedDescriptorValue = new HashMap<>();
-    expectedDescriptorValue.put(groupedPathS1, Arrays.asList(groupedPathS1, d1s1Path));
-    expectedDescriptorValue.put(groupedPathS2, Arrays.asList(groupedPathS2, d1s2Path));
+    expectedDescriptorValue.put(groupedPathS1, Collections.singletonList(groupedPathS1));
+    expectedDescriptorValue.put(groupedPathS2, Collections.singletonList(groupedPathS2));
     verifyGroupByLevelDescriptor(
         expectedDescriptorValue,
         (GroupByLevelNode)
@@ -559,14 +574,16 @@ public class AggregationDistributionTest {
                         new TimeSeriesOperand(new PartialPath(d2s1Path))),
                     2,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPathS1))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPathS1)))),
                 new CrossSeriesAggregationDescriptor(
                     TAggregationType.COUNT.name().toLowerCase(),
                     AggregationStep.FINAL,
                     Collections.singletonList(new TimeSeriesOperand(new PartialPath(d1s2Path))),
                     1,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPathS2)))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPathS2))))),
             null,
             Ordering.ASC);
     Analysis analysis = Util.constructAnalysis();
@@ -583,10 +600,23 @@ public class AggregationDistributionTest {
     List<FragmentInstance> fragmentInstances = plan.getInstances();
     fragmentInstances.forEach(
         f -> verifyAggregationStep(expectedStep, f.getFragment().getPlanNodeTree()));
+    assertTrue(
+        fragmentInstances
+                .get(0)
+                .getFragment()
+                .getPlanNodeTree()
+                .getChildren()
+                .get(0)
+                .getChildren()
+                .get(0)
+            instanceof GroupByLevelNode);
+    assertTrue(
+        fragmentInstances.get(2).getFragment().getPlanNodeTree().getChildren().get(0)
+            instanceof GroupByLevelNode);
 
     Map<String, List<String>> expectedDescriptorValue = new HashMap<>();
-    expectedDescriptorValue.put(groupedPathS1, Arrays.asList(groupedPathS1, d1s1Path, d2s1Path));
-    expectedDescriptorValue.put(groupedPathS2, Arrays.asList(groupedPathS2, d1s2Path));
+    expectedDescriptorValue.put(groupedPathS1, Arrays.asList(groupedPathS1, d2s1Path));
+    expectedDescriptorValue.put(groupedPathS2, Collections.singletonList(groupedPathS2));
     verifyGroupByLevelDescriptor(
         expectedDescriptorValue,
         (GroupByLevelNode)
@@ -642,14 +672,16 @@ public class AggregationDistributionTest {
                         new TimeSeriesOperand(new PartialPath(d2s1Path))),
                     2,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPathS1))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPathS1)))),
                 new CrossSeriesAggregationDescriptor(
                     TAggregationType.COUNT.name().toLowerCase(),
                     AggregationStep.FINAL,
                     Collections.singletonList(new TimeSeriesOperand(new PartialPath(d1s2Path))),
-                    2,
+                    1,
                     Collections.emptyMap(),
-                    new TimeSeriesOperand(new PartialPath(groupedPathS2)))),
+                    Collections.singletonList(
+                        new TimeSeriesOperand(new PartialPath(groupedPathS2))))),
             null,
             Ordering.ASC);
     Analysis analysis = Util.constructAnalysis();
@@ -817,7 +849,7 @@ public class AggregationDistributionTest {
     List<CrossSeriesAggregationDescriptor> descriptors = node.getGroupByLevelDescriptors();
     assertEquals(expected.size(), descriptors.size());
     for (CrossSeriesAggregationDescriptor descriptor : descriptors) {
-      String outputExpression = descriptor.getOutputExpression().getExpressionString();
+      String outputExpression = descriptor.getOutputExpressions().get(0).getExpressionString();
       assertEquals(expected.get(outputExpression).size(), descriptor.getInputExpressions().size());
       for (Expression inputExpression : descriptor.getInputExpressions()) {
         assertTrue(expected.get(outputExpression).contains(inputExpression.getExpressionString()));
