@@ -50,7 +50,10 @@ public enum TSDataType {
   VECTOR((byte) 6),
 
   /** UNKNOWN. */
-  UNKNOWN((byte) 7);
+  UNKNOWN((byte) 7),
+  
+  /** RLEPATTERN */
+  RLEPATTERN((byte) 8);
 
   private final byte type;
 
@@ -90,6 +93,8 @@ public enum TSDataType {
         return TSDataType.VECTOR;
       case 7:
         return TSDataType.UNKNOWN;
+      case 8:
+        return TSDataType.RLEPATTERN;
       default:
         throw new IllegalArgumentException("Invalid input: " + type);
     }
@@ -126,11 +131,12 @@ public enum TSDataType {
       case INT32:
       case FLOAT:
         return 4;
-        // For text: return the size of reference here
+        // For text&rlepattern: return the size of reference here
       case TEXT:
       case INT64:
       case DOUBLE:
       case VECTOR:
+      case RLEPATTERN:
         return 8;
       default:
         throw new UnSupportedDataTypeException(this.toString());
@@ -163,6 +169,7 @@ public enum TSDataType {
       case BOOLEAN:
       case TEXT:
       case VECTOR:
+      case RLEPATTERN:
         return false;
       default:
         throw new UnSupportedDataTypeException(this.toString());
@@ -185,6 +192,7 @@ public enum TSDataType {
       case BOOLEAN:
         return true;
       case VECTOR:
+      case RLEPATTERN:
         return false;
       default:
         throw new UnSupportedDataTypeException(this.toString());

@@ -23,6 +23,7 @@ import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.read.TimeValuePair;
 import org.apache.iotdb.tsfile.read.common.IBatchDataIterator;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.reader.IPointReader;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
@@ -537,6 +538,11 @@ public class TsBlock {
           valueColumns[i].getBinaries()[updateIdx] =
               sourceTsBlock.getValueColumns()[i].getBinary(sourceIndex);
           break;
+        case RLEPATTERN:
+          valueColumns[i].isNull()[updateIdx] = false;
+          ((RLEColumn) valueColumns[i]).getValues()[updateIdx] =
+              ((RLEColumn)sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex);
+          break; 
         default:
           throw new UnSupportedDataTypeException(
               "Unknown datatype: " + valueColumns[i].getDataType());

@@ -20,7 +20,6 @@
 package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
 
@@ -59,9 +58,10 @@ public class RLEColumn implements Column {
       throw new IllegalArgumentException("values length is less than positionCount");
     }
 
-    if (!(values[0] instanceof RLEPatternColumn)) {
-      throw new IllegalArgumentException("column must be RLEPattern Columns");
-    }
+    // if (!(values[0] instanceof RLEPatternColumn)) {
+    //   throw new IllegalArgumentException("column must be RLEPattern Columns" +
+    // values[0].getClass());
+    // }
 
     this.values = (RLEPatternColumn[]) values;
 
@@ -89,7 +89,18 @@ public class RLEColumn implements Column {
 
   @Override
   public TSDataType getDataType() {
-    return values[arrayOffset].getDataType();
+    // if (valueIsNull == null) {
+    //   return values[arrayOffset].getDataType();
+    // } else {
+    //   int i;
+    //   for (i = arrayOffset; i < arrayOffset + positionCount && valueIsNull[i] == true; i++) ;
+    //   if (i < arrayOffset + positionCount) {
+    //     return values[arrayOffset + i].getDataType();
+    //   } else {
+    //     return TSDataType.UNKNOWN;
+    //   }
+    // }
+    return TSDataType.RLEPATTERN;
   }
 
   @Override
@@ -102,10 +113,14 @@ public class RLEColumn implements Column {
     return values;
   }
 
-  @Override
-  public TsPrimitiveType getTsPrimitiveType(int position) {
-    return values[arrayOffset + position].getTsPrimitiveType(0);
-  }
+  // @Override
+  // public TsPrimitiveType getTsPrimitiveType(int position) {
+  //   if(valueIsNull != null && !valueIsNull[arrayOffset]){
+  //     return values[arrayOffset + position].getTsPrimitiveType(0);
+  //   }else{
+  //     return null;
+  //   }
+  // }
 
   @Override
   public boolean mayHaveNull() {
@@ -135,8 +150,16 @@ public class RLEColumn implements Column {
   @Override
   public long getRetainedSizeInBytes() {
     long retainedSizeInBytes = 0;
-    for (int i = 0; i < positionCount; i++) {
-      retainedSizeInBytes += values[arrayOffset + i].getRetainedSizeInBytes();
+    if (valueIsNull != null) {
+      for (int i = 0; i < positionCount; i++) {
+        if (!valueIsNull[arrayOffset + i]) {
+          retainedSizeInBytes += values[arrayOffset + i].getRetainedSizeInBytes();
+        }
+      }
+    } else {
+      for (int i = 0; i < positionCount; i++) {
+        retainedSizeInBytes += values[arrayOffset + i].getRetainedSizeInBytes();
+      }
     }
     retainedSizeInBytes += INSTANCE_SIZE;
     return retainedSizeInBytes;

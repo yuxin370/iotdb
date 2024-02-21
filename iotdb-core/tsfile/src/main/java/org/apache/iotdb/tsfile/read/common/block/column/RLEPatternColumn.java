@@ -264,7 +264,11 @@ public class RLEPatternColumn implements Column {
 
   @Override
   public TsPrimitiveType getTsPrimitiveType(int position) {
-    return value.getTsPrimitiveType(0);
+    if (this.type == RunLengthMode.RLE) {
+      return value.getTsPrimitiveType(0);
+    } else {
+      return value.getTsPrimitiveType(position);
+    }
   }
 
   @Override

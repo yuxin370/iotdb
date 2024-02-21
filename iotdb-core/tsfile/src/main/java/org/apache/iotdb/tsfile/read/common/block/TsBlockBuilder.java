@@ -30,6 +30,7 @@ import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.FloatColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.IntColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.LongColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.utils.Binary;
@@ -136,6 +137,10 @@ public class TsBlockBuilder {
           valueColumnBuilders[i] =
               new BinaryColumnBuilder(
                   tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
+        case RLEPATTERN:
+          valueColumnBuilders[i] =
+              new RLEColumnBuilder(
+                  tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
           break;
         default:
           throw new IllegalArgumentException("Unknown data type: " + types.get(i));
@@ -204,6 +209,10 @@ public class TsBlockBuilder {
           valueColumnBuilders[i] =
               new BinaryColumnBuilder(
                   tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
+        case RLEPATTERN:
+          valueColumnBuilders[i] =
+              new RLEColumnBuilder(
+                 tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
           break;
         default:
           throw new IllegalArgumentException("Unknown data type: " + types.get(i));
