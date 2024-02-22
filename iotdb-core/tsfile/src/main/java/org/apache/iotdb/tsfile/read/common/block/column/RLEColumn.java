@@ -89,18 +89,22 @@ public class RLEColumn implements Column {
 
   @Override
   public TSDataType getDataType() {
-    // if (valueIsNull == null) {
-    //   return values[arrayOffset].getDataType();
-    // } else {
-    //   int i;
-    //   for (i = arrayOffset; i < arrayOffset + positionCount && valueIsNull[i] == true; i++) ;
-    //   if (i < arrayOffset + positionCount) {
-    //     return values[arrayOffset + i].getDataType();
-    //   } else {
-    //     return TSDataType.UNKNOWN;
-    //   }
-    // }
     return TSDataType.RLEPATTERN;
+  }
+
+  /** get dataType of the actual stored values. */
+  public TSDataType getValueDataType() {
+    if (valueIsNull == null) {
+      return values[arrayOffset].getDataType();
+    } else {
+      int i;
+      for (i = arrayOffset; i < arrayOffset + positionCount && valueIsNull[i] == true; i++) ;
+      if (i < arrayOffset + positionCount) {
+        return values[arrayOffset + i].getDataType();
+      } else {
+        return TSDataType.UNKNOWN;
+      }
+    }
   }
 
   @Override

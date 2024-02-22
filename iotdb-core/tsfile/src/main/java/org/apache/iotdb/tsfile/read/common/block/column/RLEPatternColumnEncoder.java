@@ -31,39 +31,41 @@ public class RLEPatternColumnEncoder implements ColumnEncoder {
   @Override
   public Column readColumn(ByteBuffer input, TSDataType dataType, int positionCount) {
     // Serialized data layout:
-    //    +-----------+------+-----------------+------------------------+
-    //    | encoding  | mode | positioncount   |serialized inner column |
-    //    +-----------+------+-----------------+------------------------+
-    //    | byte      | byte |   int           |  list[byte]            |
-    //    +-----------+------+-----------------+------------------------+
+    //    +----------+------------------+------+-----------------+------------------------+
+    //    | encoding |  value data type | mode | positioncount   |serialized inner column |
+    //    +----------+------------------+------+-----------------+------------------------+
+    //    | byte     |     byte         | byte |   int           |  list[byte]            |
+    //    +----------+------------------+------+-----------------+------------------------+
     ColumnEncoder columnEncoder = ColumnEncoderFactory.get(ColumnEncoding.deserializeFrom(input));
+    TSDataType readDataType = TSDataType.deserializeFrom(input);
     RunLengthMode mode = RunLengthMode.deserializeFrom(input);
     Column innerColumn;
     int totalPositionCount = input.getInt();
     positionCount = totalPositionCount > positionCount ? positionCount : totalPositionCount;
     if (mode == RunLengthMode.RLE) {
-      innerColumn = columnEncoder.readColumn(input, dataType, 1);
+      innerColumn = columnEncoder.readColumn(input, readDataType, 1);
     } else {
-      innerColumn = columnEncoder.readColumn(input, dataType, positionCount);
+      innerColumn = columnEncoder.readColumn(input, readDataType, positionCount);
     }
     return new RLEPatternColumn(innerColumn, positionCount, mode);
   }
 
   public Column readColumn(ByteBuffer input, TSDataType dataType) {
     // Serialized data layout:
-    //    +-----------+------+-----------------+------------------------+
-    //    | encoding  | mode | positioncount   |serialized inner column |
-    //    +-----------+------+-----------------+------------------------+
-    //    | byte      | byte |   int           |  list[byte]            |
-    //    +-----------+------+-----------------+------------------------+
+    //    +----------+------------------+------+-----------------+------------------------+
+    //    | encoding |  value data type | mode | positioncount   |serialized inner column |
+    //    +----------+------------------+------+-----------------+------------------------+
+    //    | byte     |     byte         | byte |   int           |  list[byte]            |
+    //    +----------+------------------+------+-----------------+------------------------+
     ColumnEncoder columnEncoder = ColumnEncoderFactory.get(ColumnEncoding.deserializeFrom(input));
+    TSDataType readDataType = TSDataType.deserializeFrom(input);
     RunLengthMode mode = RunLengthMode.deserializeFrom(input);
     Column innerColumn;
     int positionCount = input.getInt();
     if (mode == RunLengthMode.RLE) {
-      innerColumn = columnEncoder.readColumn(input, dataType, 1);
+      innerColumn = columnEncoder.readColumn(input, readDataType, 1);
     } else {
-      innerColumn = columnEncoder.readColumn(input, dataType, positionCount);
+      innerColumn = columnEncoder.readColumn(input, readDataType, positionCount);
     }
     return new RLEPatternColumn(innerColumn, positionCount, mode);
   }
@@ -73,11 +75,13 @@ public class RLEPatternColumnEncoder implements ColumnEncoder {
     Column innerColumn = ((RLEPatternColumn) column).getValue();
     RunLengthMode mode = ((RLEPatternColumn) column).getMode();
     int positionCount = ((RLEPatternColumn) column).getPositionCount();
+    TSDataType dataType = ((RLEPatternColumn) column).getDataType();
     if (innerColumn instanceof RLEPatternColumn) {
       throw new IOException("Unable to encode a nested RLE column.");
     }
 
     innerColumn.getEncoding().serializeTo(output);
+    dataType.serializeTo(output);
     mode.serializeTo(output);
     ColumnEncoder columnEncoder = ColumnEncoderFactory.get(innerColumn.getEncoding());
     output.writeInt(positionCount);

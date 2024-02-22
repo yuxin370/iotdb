@@ -38,6 +38,9 @@ import org.apache.iotdb.tsfile.read.reader.series.PaginationController;
 import org.apache.iotdb.tsfile.utils.Binary;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -49,6 +52,8 @@ import static org.apache.iotdb.tsfile.read.reader.series.PaginationController.UN
 import static org.apache.iotdb.tsfile.utils.Preconditions.checkArgument;
 
 public class PageReader implements IPageReader {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(PageReader.class);
 
   private final PageHeader pageHeader;
 

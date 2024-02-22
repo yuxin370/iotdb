@@ -21,7 +21,6 @@ package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
 
@@ -74,24 +73,19 @@ public class RLEColumnBuilder implements ColumnBuilder {
     return this;
   }
 
-  /** Write an Object to the current entry, which should be the Integer type; */
+  /** Write an Object to the current entry, which should be the RLEPattern type; */
   @Override
   public ColumnBuilder writeObject(Object value) {
-    if (value instanceof Integer) {
-      writeInt((Integer) value);
+    if (value instanceof RLEPatternColumn) {
+      writeRLEPattern((RLEPatternColumn) value);
       return this;
     }
-    throw new UnSupportedDataTypeException("IntegerColumn only support Integer data type");
+    throw new UnSupportedDataTypeException("RLEColumn only support RLEPattern data type");
   }
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeInt(column.getInt(index));
-  }
-
-  @Override
-  public ColumnBuilder writeTsPrimitiveType(TsPrimitiveType value) {
-    return writeInt(value.getInt());
+    return writeRLEPattern(((RLEColumn) column).getRLEPattern(index));
   }
 
   @Override

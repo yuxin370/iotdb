@@ -541,8 +541,8 @@ public class TsBlock {
         case RLEPATTERN:
           valueColumns[i].isNull()[updateIdx] = false;
           ((RLEColumn) valueColumns[i]).getValues()[updateIdx] =
-              ((RLEColumn)sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex);
-          break; 
+              ((RLEColumn) sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex);
+          break;
         default:
           throw new UnSupportedDataTypeException(
               "Unknown datatype: " + valueColumns[i].getDataType());

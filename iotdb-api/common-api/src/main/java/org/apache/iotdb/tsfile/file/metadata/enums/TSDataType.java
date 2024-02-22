@@ -51,7 +51,7 @@ public enum TSDataType {
 
   /** UNKNOWN. */
   UNKNOWN((byte) 7),
-  
+
   /** RLEPATTERN */
   RLEPATTERN((byte) 8);
 

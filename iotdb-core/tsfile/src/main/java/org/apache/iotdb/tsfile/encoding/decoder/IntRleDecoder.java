@@ -22,6 +22,8 @@ package org.apache.iotdb.tsfile.encoding.decoder;
 import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.encoding.bitpacking.IntPacker;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
+import org.apache.iotdb.tsfile.read.common.block.column.IntColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -97,6 +99,55 @@ public class IntRleDecoder extends RleDecoder {
       isLengthAndBitWidthReaded = false;
     }
     return result;
+  }
+
+  /**
+   * read an RLEPattern value from InputStream.
+   *
+   * @param buffer - ByteBuffer
+   * @return value - current valid RLEPattern value
+   */
+  public RLEPatternColumn readRLEPattern(ByteBuffer buffer) {
+    IntColumnBuilder builder = new IntColumnBuilder(null, 0);
+    if (!isLengthAndBitWidthReaded) {
+      // start to read a new rle+bit-packing pattern
+      readLengthAndBitWidth(buffer);
+    }
+
+    if (currentCount == 0) {
+      try {
+        readNext();
+      } catch (IOException e) {
+        logger.error(
+            "tsfile-encoding IntRleDecoder: error occurs when reading all encoding number,"
+                + " length is {}, bit width is {}",
+            length,
+            bitWidth,
+            e);
+      }
+    }
+    // --currentCount;
+    int valueCount = currentCount;
+    switch (mode) {
+      case RLE:
+        builder.writeInt(currentValue);
+        currentCount = 0;
+        break;
+      case BIT_PACKED:
+        while (currentCount != 0) {
+          currentCount--;
+          builder.writeInt(currentBuffer[bitPackingNum - currentCount - 1]);
+        }
+        break;
+      default:
+        throw new TsFileDecodingException(
+            String.format("tsfile-encoding IntRleDecoder: not a valid mode %s", mode));
+    }
+
+    if (!hasNextPackage()) {
+      isLengthAndBitWidthReaded = false;
+    }
+    return new RLEPatternColumn(builder.build(), valueCount, mode == Mode.RLE ? 0 : 1);
   }
 
   @Override

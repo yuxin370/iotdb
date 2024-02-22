@@ -137,6 +137,7 @@ public class TsBlockBuilder {
           valueColumnBuilders[i] =
               new BinaryColumnBuilder(
                   tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
+          break;
         case RLEPATTERN:
           valueColumnBuilders[i] =
               new RLEColumnBuilder(
@@ -209,10 +210,11 @@ public class TsBlockBuilder {
           valueColumnBuilders[i] =
               new BinaryColumnBuilder(
                   tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
+          break;
         case RLEPATTERN:
           valueColumnBuilders[i] =
               new RLEColumnBuilder(
-                 tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
+                  tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
           break;
         default:
           throw new IllegalArgumentException("Unknown data type: " + types.get(i));
