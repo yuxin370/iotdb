@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.operator;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.read.filter.basic.OperatorType;
 
@@ -63,6 +64,29 @@ public class Not extends Filter {
     boolean[] result = filter.satisfyTsBlock(tsBlock);
     for (int i = 0; i < result.length; i++) {
       result[i] = !result[i];
+    }
+    return result;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPattern) {
+    boolean[] result = filter.satisfyRLEPattern(timestamps, RLEPattern);
+    for (int i = 0; i < result.length; i++) {
+      result[i] = !result[i];
+    }
+    return result;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(
+      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPattern) {
+    boolean[] result = filter.satisfyRLEPattern(timestamps, isDeleted, RLEPattern);
+    for (int i = 0; i < result.length; i++) {
+      if (isDeleted[i]) {
+        result[i] = false;
+      } else {
+        result[i] = !result[i];
+      }
     }
     return result;
   }

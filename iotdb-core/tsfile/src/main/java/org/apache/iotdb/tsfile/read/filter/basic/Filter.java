@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.basic;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.filter.factory.FilterFactory;
 import org.apache.iotdb.tsfile.read.filter.factory.TimeFilterApi;
 import org.apache.iotdb.tsfile.read.filter.factory.ValueFilterApi;
@@ -81,6 +82,24 @@ public abstract class Filter {
    * @return for each row, true if the row is satisfied with the filter, false otherwise
    */
   public abstract boolean[] satisfyTsBlock(TsBlock tsBlock);
+
+  /**
+   * To examine whether the RLEPattern(with many values) is satisfied with the filter.
+   *
+   * @param page data
+   * @return for each value, true if the value is satisfied with the filter, false otherwise
+   */
+  public abstract boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPattern);
+
+  /**
+   * To examine whether the RLEPattern(with many values) is satisfied with the filter.
+   *
+   * @param page data
+   * @return for each value, true if the value is not deleted and satisfied with the filter, false
+   *     otherwise
+   */
+  public abstract boolean[] satisfyRLEPattern(
+      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPattern);
 
   /**
    * To examine whether the block can be skipped.

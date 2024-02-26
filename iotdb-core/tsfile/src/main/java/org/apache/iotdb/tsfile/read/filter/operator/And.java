@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.operator;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.filter.basic.BinaryLogicalFilter;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.read.filter.basic.OperatorType;
@@ -54,6 +55,27 @@ public class And extends BinaryLogicalFilter {
   public boolean[] satisfyTsBlock(TsBlock tsBlock) {
     boolean[] leftResult = left.satisfyTsBlock(tsBlock);
     boolean[] rightResult = right.satisfyTsBlock(tsBlock);
+    for (int i = 0; i < leftResult.length; i++) {
+      leftResult[i] = leftResult[i] && rightResult[i];
+    }
+    return leftResult;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPattern) {
+    boolean[] leftResult = left.satisfyRLEPattern(timestamps, RLEPattern);
+    boolean[] rightResult = right.satisfyRLEPattern(timestamps, RLEPattern);
+    for (int i = 0; i < leftResult.length; i++) {
+      leftResult[i] = leftResult[i] && rightResult[i];
+    }
+    return leftResult;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(
+      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPattern) {
+    boolean[] leftResult = left.satisfyRLEPattern(timestamps, isDeleted, RLEPattern);
+    boolean[] rightResult = right.satisfyRLEPattern(timestamps, isDeleted, RLEPattern);
     for (int i = 0; i < leftResult.length; i++) {
       leftResult[i] = leftResult[i] && rightResult[i];
     }

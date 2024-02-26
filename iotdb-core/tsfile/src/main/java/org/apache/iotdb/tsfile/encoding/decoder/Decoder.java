@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.encoding.decoder;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.utils.Binary;
 
 import java.io.IOException;
@@ -196,6 +197,10 @@ public abstract class Decoder {
 
   public BigDecimal readBigDecimal(ByteBuffer buffer) {
     throw new TsFileDecodingException("Method readBigDecimal is not supported by Decoder");
+  }
+
+  public RLEPatternColumn readRLEPattern(ByteBuffer buffer) {
+    throw new TsFileDecodingException("Method readRLEPattern is not supported by Decoder");
   }
 
   public abstract boolean hasNext(ByteBuffer buffer) throws IOException;

@@ -107,6 +107,7 @@ public class IntRleDecoder extends RleDecoder {
    * @param buffer - ByteBuffer
    * @return value - current valid RLEPattern value
    */
+  @Override
   public RLEPatternColumn readRLEPattern(ByteBuffer buffer) {
     IntColumnBuilder builder = new IntColumnBuilder(null, 0);
     if (!isLengthAndBitWidthReaded) {

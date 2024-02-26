@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.basic;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 
 import java.io.Serializable;
 
@@ -48,6 +49,29 @@ public abstract class TimeFilter extends Filter {
     boolean[] satisfyInfo = new boolean[tsBlock.getPositionCount()];
     for (int i = 0; i < tsBlock.getPositionCount(); i++) {
       satisfyInfo[i] = timeSatisfy(tsBlock.getTimeByIndex(i));
+    }
+    return satisfyInfo;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPAttern) {
+    boolean[] satisfyInfo = new boolean[RLEPAttern.getPositionCount()];
+    for (int i = 0; i < RLEPAttern.getPositionCount(); i++) {
+      satisfyInfo[i] = timeSatisfy(timestamps[i]);
+    }
+    return satisfyInfo;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(
+      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPAttern) {
+    boolean[] satisfyInfo = new boolean[RLEPAttern.getPositionCount()];
+    for (int i = 0; i < RLEPAttern.getPositionCount(); i++) {
+      if (isDeleted[i]) {
+        satisfyInfo[i] = false;
+      } else {
+        satisfyInfo[i] = timeSatisfy(timestamps[i]);
+      }
     }
     return satisfyInfo;
   }

@@ -24,12 +24,14 @@ import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -70,6 +72,43 @@ public abstract class ValueFilter extends Filter {
         satisfyInfo[i] = false;
       } else {
         satisfyInfo[i] = valueSatisfy(valueColumn.getObject(i));
+      }
+    }
+    return satisfyInfo;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn rlePattern) {
+    boolean[] satisfyInfo = new boolean[rlePattern.getPositionCount()];
+    if (rlePattern.isRLEMode()) {
+      Arrays.fill(satisfyInfo, valueSatisfy(rlePattern.getObject(0)));
+    } else {
+      for (int i = 0; i < rlePattern.getPositionCount(); i++) {
+        if (rlePattern.isNull(i)) {
+          // null not satisfy any filter, except IS NULL
+          satisfyInfo[i] = false;
+        } else {
+          satisfyInfo[i] = valueSatisfy(rlePattern.getObject(i));
+        }
+      }
+    }
+    return satisfyInfo;
+  }
+
+  @Override
+  public boolean[] satisfyRLEPattern(
+      long[] timestamps, boolean[] isDeleted, RLEPatternColumn rlePattern) {
+    boolean[] satisfyInfo = new boolean[rlePattern.getPositionCount()];
+    if (rlePattern.isRLEMode()) {
+      Arrays.fill(satisfyInfo, valueSatisfy(rlePattern.getObject(0)));
+    } else {
+      for (int i = 0; i < rlePattern.getPositionCount(); i++) {
+        if (rlePattern.isNull(i)) {
+          // null not satisfy any filter, except IS NULL
+          satisfyInfo[i] = false;
+        } else {
+          satisfyInfo[i] = valueSatisfy(rlePattern.getObject(i));
+        }
       }
     }
     return satisfyInfo;

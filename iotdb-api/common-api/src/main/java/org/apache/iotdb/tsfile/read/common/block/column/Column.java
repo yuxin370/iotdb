@@ -148,6 +148,12 @@ public interface Column {
    */
   Column subColumn(int fromIndex);
 
+  /**
+   * This method will create a temporary view of origin column, which will reuse the array of column
+   * but with only retained part of the array values.
+   */
+  Column subColumn(boolean[] valueRetained);
+
   /** reverse the column */
   void reverse();
 

@@ -23,6 +23,7 @@ import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.utils.Binary;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
@@ -221,6 +222,11 @@ public abstract class RleDecoder extends Decoder {
   @Override
   public BigDecimal readBigDecimal(ByteBuffer buffer) {
     throw new TsFileDecodingException("Method readBigDecimal is not supproted by RleDecoder");
+  }
+
+  @Override
+  public RLEPatternColumn readRLEPattern(ByteBuffer buffer) {
+    throw new TsFileDecodingException("Method readRLEPattern is not supproted by RleDecoder");
   }
 
   protected enum Mode {

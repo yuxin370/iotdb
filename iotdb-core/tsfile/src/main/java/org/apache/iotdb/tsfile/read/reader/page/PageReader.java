@@ -20,6 +20,7 @@
 package org.apache.iotdb.tsfile.read.reader.page;
 
 import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
+import org.apache.iotdb.tsfile.encoding.decoder.RleDecoder;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.header.PageHeader;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -30,6 +31,8 @@ import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.read.filter.factory.FilterFactory;
@@ -44,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -175,8 +179,93 @@ public class PageReader implements IPageReader {
     return pageData.flip();
   }
 
+  public TsBlock getAllSatisfiedDataDirectComputing() throws IOException {
+    if (!(valueDecoder instanceof RleDecoder)) {
+      throw new UnSupportedDataTypeException(
+          "only direct computing for rle encoder supported, get decoder type: "
+              + valueDecoder.getType());
+    }
+    TsBlockBuilder builder;
+    int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();
+    if (paginationController.hasCurLimit()) {
+      initialExpectedEntries =
+          (int) Math.min(initialExpectedEntries, paginationController.getCurLimit());
+    }
+
+    builder =
+        new TsBlockBuilder(
+            initialExpectedEntries, Collections.singletonList(TSDataType.RLEPATTERN));
+
+    TimeColumnBuilder timeBuilder = builder.getTimeColumnBuilder();
+    RLEColumnBuilder valueBuilder = (RLEColumnBuilder) builder.getColumnBuilder(0);
+    boolean allSatisfy = recordFilter == null || recordFilter.allSatisfy(this);
+
+    while (timeDecoder.hasNext(timeBuffer)) {
+
+      /** read a RlePattern */
+      RLEPatternColumn anRLEPattern = valueDecoder.readRLEPattern(valueBuffer);
+      int patternCount = anRLEPattern.getPositionCount();
+
+      /** read coressponding timestamps and check if the timestamp is deleted. */
+      long[] timestamps = new long[patternCount];
+      boolean[] isDeletedArray = new boolean[patternCount];
+      for (int i = 0; i < patternCount && timeDecoder.hasNext(timeBuffer); i++) {
+        timestamps[i] = timeDecoder.readLong(timeBuffer);
+        isDeletedArray[i] = isDeleted(timestamps[i]);
+      }
+
+      /** construct value satisfy array with filter */
+      boolean[] valueSatisfy = new boolean[patternCount];
+      if (allSatisfy) {
+        Arrays.fill(valueSatisfy, true);
+      } else {
+        valueSatisfy = recordFilter.satisfyRLEPattern(timestamps, isDeletedArray, anRLEPattern);
+      }
+
+      /** construct value retained array with filter */
+      boolean[] valueRetained = new boolean[patternCount];
+      Arrays.fill(valueRetained, false);
+      boolean hasValueRetained = false;
+      boolean end = false;
+      for (int i = 0; i < patternCount; i++) {
+        if (!valueSatisfy[i]) {
+          continue;
+        }
+        if (paginationController.hasCurOffset()) {
+          paginationController.consumeOffset();
+          continue;
+        }
+        if (paginationController.hasCurLimit()) {
+          hasValueRetained = true;
+          timeBuilder.writeLong(timestamps[i]);
+          valueRetained[i] = true;
+          builder.declarePosition();
+          paginationController.consumeLimit();
+        } else {
+          end = true;
+          break;
+        }
+      }
+
+      /** write retained value to rleColumn */
+      if (hasValueRetained) {
+        valueBuilder.writeRLEPattern(anRLEPattern, valueRetained);
+      }
+
+      /** if read reach the end, break */
+      if (end) {
+        break;
+      }
+    }
+    return builder.build();
+  }
+
   @Override
   public TsBlock getAllSatisfiedData() throws IOException {
+    /** only direct computing for rle encoder supported. */
+    if (valueDecoder instanceof RleDecoder) {
+      return getAllSatisfiedDataDirectComputing();
+    }
     TsBlockBuilder builder;
     int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();
     if (paginationController.hasCurLimit()) {

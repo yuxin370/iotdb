@@ -23,6 +23,7 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.Binary;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.openjdk.jol.info.ClassLayout;
 
 import java.io.DataOutputStream;
@@ -36,7 +37,7 @@ import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.checkV
 public class RLEPatternColumn implements Column {
 
   private static final int INSTANCE_SIZE =
-      ClassLayout.parseClass(RunLengthEncodedColumn.class).instanceSize();
+      ClassLayout.parseClass(RLEPatternColumn.class).instanceSize();
 
   private final Column value;
   private final int positionCount;
@@ -45,8 +46,8 @@ public class RLEPatternColumn implements Column {
   public RLEPatternColumn(Column value, int positionCount, int type) {
     requireNonNull(value, "value is null");
 
-    if (value instanceof RunLengthEncodedColumn) {
-      this.value = ((RunLengthEncodedColumn) value).getValue();
+    if (value instanceof RLEPatternColumn) {
+      this.value = ((RLEPatternColumn) value).getValue();
     } else {
       this.value = value;
     }
@@ -62,8 +63,8 @@ public class RLEPatternColumn implements Column {
   public RLEPatternColumn(Column value, int positionCount, RunLengthMode type) {
     requireNonNull(value, "value is null");
 
-    if (value instanceof RunLengthEncodedColumn) {
-      this.value = ((RunLengthEncodedColumn) value).getValue();
+    if (value instanceof RLEPatternColumn) {
+      this.value = ((RLEPatternColumn) value).getValue();
     } else {
       this.value = value;
     }
@@ -82,6 +83,10 @@ public class RLEPatternColumn implements Column {
 
   public RunLengthMode getMode() {
     return type;
+  }
+
+  public boolean isRLEMode() {
+    return type == RunLengthMode.RLE ? true : false;
   }
 
   @Override
@@ -305,7 +310,7 @@ public class RLEPatternColumn implements Column {
   @Override
   public Column getRegion(int positionOffset, int length) {
     checkValidRegion(positionCount, positionOffset, length);
-    return new RunLengthEncodedColumn(value, length);
+    return new RLEPatternColumn(value, length, type);
   }
 
   @Override
@@ -313,7 +318,25 @@ public class RLEPatternColumn implements Column {
     if (fromIndex > positionCount) {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
-    return new RunLengthEncodedColumn(value, positionCount - fromIndex);
+    return new RLEPatternColumn(value, positionCount - fromIndex, type);
+  }
+
+  @Override
+  public Column subColumn(boolean[] valueRetained) {
+    if (valueRetained.length != positionCount) {
+      throw new IllegalArgumentException("valueRetained is not valid");
+    }
+    int newCount = 0;
+    for (int i = 0; i < positionCount; i++) {
+      if (valueRetained[i] == true) {
+        newCount++;
+      }
+    }
+    if (type == RunLengthMode.RLE || newCount == positionCount) {
+      return new RLEPatternColumn(value, newCount, type);
+    } else {
+      return new RLEPatternColumn(value.subColumn(valueRetained), newCount, type);
+    }
   }
 
   @Override
@@ -324,6 +347,23 @@ public class RLEPatternColumn implements Column {
   @Override
   public int getInstanceSize() {
     return INSTANCE_SIZE;
+  }
+
+  public int getSizeInBytesPerPosition() {
+    if (value instanceof IntColumn) {
+      return IntColumn.SIZE_IN_BYTES_PER_POSITION;
+    } else if (value instanceof LongColumn) {
+      return LongColumn.SIZE_IN_BYTES_PER_POSITION;
+    } else if (value instanceof DoubleColumn) {
+      return DoubleColumn.SIZE_IN_BYTES_PER_POSITION;
+    } else if (value instanceof FloatColumn) {
+      return FloatColumn.SIZE_IN_BYTES_PER_POSITION;
+    } else if (value instanceof BooleanColumn) {
+      return BooleanColumn.SIZE_IN_BYTES_PER_POSITION;
+    } else {
+      throw new NotImplementedException(
+          value.toString() + " can not get SIZE_IN_BYTES_PER_POSITION");
+    }
   }
 
   protected enum RunLengthMode {

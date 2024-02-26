@@ -146,9 +146,29 @@ public class RLEColumn implements Column {
     return valueIsNull;
   }
 
+  /** get positionCount, which is the number of the RLEPatternColumn */
   @Override
   public int getPositionCount() {
     return positionCount;
+  }
+
+  /** get the number of the actual values, which eauqls to sum(RLEPatternCoumns[i].PositionCount) */
+  public int getValueCount() {
+    int valueCount = 0;
+    if (valueIsNull == null) {
+      for (int i = 0; i < positionCount; i++) {
+        valueCount += values[i].getPositionCount();
+      }
+    } else {
+      if (valueIsNull == null) {
+        for (int i = 0; i < positionCount; i++) {
+          if (valueIsNull[i] != true) {
+            valueCount += values[i].getPositionCount();
+          }
+        }
+      }
+    }
+    return valueCount;
   }
 
   @Override
@@ -181,6 +201,42 @@ public class RLEColumn implements Column {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
     return new RLEColumn(arrayOffset + fromIndex, positionCount - fromIndex, valueIsNull, values);
+  }
+
+  @Override
+  public Column subColumn(boolean[] valueRetained) {
+    if (valueRetained.length != positionCount) {
+      throw new IllegalArgumentException("valueRetained is not valid");
+    }
+    int newCount = 0;
+    for (int i = 0; i < positionCount; i++) {
+      if (valueRetained[i] == true) {
+        newCount++;
+      }
+    }
+    if (newCount == positionCount) {
+      return new RLEColumn(0, newCount, valueIsNull, values);
+    }
+    RLEPatternColumn[] newValue = new RLEPatternColumn[newCount];
+    boolean[] newValueIsNull = new boolean[newCount];
+    if (valueIsNull == null) {
+      newValueIsNull = null;
+      for (int i = 0, j = 0; i < positionCount; i++) {
+        if (valueRetained[i] == true) {
+          newValue[j] = values[j];
+          j++;
+        }
+      }
+    } else {
+      for (int i = 0, j = 0; i < positionCount; i++) {
+        if (valueRetained[i] == true) {
+          newValue[j] = values[j];
+          newValueIsNull[j] = valueIsNull[j];
+          j++;
+        }
+      }
+    }
+    return new RLEColumn(0, newCount, newValueIsNull, newValue);
   }
 
   @Override

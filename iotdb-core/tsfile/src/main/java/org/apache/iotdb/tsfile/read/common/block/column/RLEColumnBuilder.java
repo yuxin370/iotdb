@@ -68,7 +68,23 @@ public class RLEColumnBuilder implements ColumnBuilder {
     hasNonNullValue = true;
     positionCount++;
     if (columnBuilderStatus != null) {
-      columnBuilderStatus.addBytes(IntColumn.SIZE_IN_BYTES_PER_POSITION);
+      columnBuilderStatus.addBytes(value.getInstanceSize());
+    }
+    return this;
+  }
+
+  /** Write RLEPattern and only preserve the retained values */
+  public ColumnBuilder writeRLEPattern(RLEPatternColumn value, boolean[] valueRetained) {
+    if (values.length <= positionCount) {
+      growCapacity();
+    }
+
+    values[positionCount] = (RLEPatternColumn) value.subColumn(valueRetained);
+
+    hasNonNullValue = true;
+    positionCount++;
+    if (columnBuilderStatus != null) {
+      columnBuilderStatus.addBytes(value.getInstanceSize());
     }
     return this;
   }
