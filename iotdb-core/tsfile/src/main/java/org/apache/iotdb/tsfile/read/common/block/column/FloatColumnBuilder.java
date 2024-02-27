@@ -92,7 +92,27 @@ public class FloatColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeFloat(column.getFloat(index));
+    if (column instanceof RLEColumn) {
+      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+      int count = rlePattern.getPositionCount();
+      if (rlePattern.isRLEMode()) {
+        float curValue = rlePattern.getFloat(0);
+        for (int i = 0; i < count; i++) {
+          writeFloat(curValue);
+        }
+      } else {
+        for (int i = 0; i < count; i++) {
+          if (rlePattern.isNull(i)) {
+            appendNull();
+          } else {
+            writeFloat(rlePattern.getFloat(i));
+          }
+        }
+      }
+      return this;
+    } else {
+      return writeFloat(column.getFloat(index));
+    }
   }
 
   @Override

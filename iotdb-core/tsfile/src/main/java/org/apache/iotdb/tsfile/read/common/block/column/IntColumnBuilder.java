@@ -87,7 +87,27 @@ public class IntColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeInt(column.getInt(index));
+    if (column instanceof RLEColumn) {
+      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+      int count = rlePattern.getPositionCount();
+      if (rlePattern.isRLEMode()) {
+        int curValue = rlePattern.getInt(0);
+        for (int i = 0; i < count; i++) {
+          writeInt(curValue);
+        }
+      } else {
+        for (int i = 0; i < count; i++) {
+          if (rlePattern.isNull(i)) {
+            appendNull();
+          } else {
+            writeInt(rlePattern.getInt(i));
+          }
+        }
+      }
+      return this;
+    } else {
+      return writeInt(column.getInt(index));
+    }
   }
 
   @Override

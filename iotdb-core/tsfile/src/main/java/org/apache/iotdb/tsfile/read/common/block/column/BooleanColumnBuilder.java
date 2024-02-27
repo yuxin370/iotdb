@@ -87,7 +87,27 @@ public class BooleanColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeBoolean(column.getBoolean(index));
+    if (column instanceof RLEColumn) {
+      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+      int count = rlePattern.getPositionCount();
+      if (rlePattern.isRLEMode()) {
+        boolean curValue = rlePattern.getBoolean(0);
+        for (int i = 0; i < count; i++) {
+          writeBoolean(curValue);
+        }
+      } else {
+        for (int i = 0; i < count; i++) {
+          if (rlePattern.isNull(i)) {
+            appendNull();
+          } else {
+            writeBoolean(rlePattern.getBoolean(i));
+          }
+        }
+      }
+      return this;
+    } else {
+      return writeBoolean(column.getBoolean(index));
+    }
   }
 
   @Override

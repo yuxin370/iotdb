@@ -87,7 +87,27 @@ public class LongColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeLong(column.getLong(index));
+    if (column instanceof RLEColumn) {
+      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+      int count = rlePattern.getPositionCount();
+      if (rlePattern.isRLEMode()) {
+        long curValue = rlePattern.getLong(0);
+        for (int i = 0; i < count; i++) {
+          writeLong(curValue);
+        }
+      } else {
+        for (int i = 0; i < count; i++) {
+          if (rlePattern.isNull(i)) {
+            appendNull();
+          } else {
+            writeLong(rlePattern.getLong(i));
+          }
+        }
+      }
+      return this;
+    } else {
+      return writeLong(column.getLong(index));
+    }
   }
 
   @Override

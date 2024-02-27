@@ -101,7 +101,12 @@ public class RLEColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeRLEPattern(((RLEColumn) column).getRLEPattern(index));
+    if (!(column instanceof RLEColumn)) {
+      throw new UnsupportedOperationException(
+          "for RLEColumnBuilder.write, only RLEColumn supported.");
+    } else {
+      return writeRLEPattern(((RLEColumn) column).getRLEPattern(index));
+    }
   }
 
   @Override

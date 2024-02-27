@@ -29,6 +29,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 
@@ -146,27 +148,64 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
     return false;
   }
 
-  private void appendToBuilder(TsBlock tsBlock) {
+  private void appendRLEToBuilder(TsBlock tsBlock) {
     TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
     TimeColumn timeColumn = tsBlock.getTimeColumn();
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
     Column column = tsBlock.getColumn(0);
-
+    int countFlag = 0;
     if (column.mayHaveNull()) {
-      for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
-        timeColumnBuilder.writeLong(timeColumn.getLong(i));
+      for (int i = 0, size = column.getPositionCount(); i < size; i++) {
+        int patternLength = 1;
         if (column.isNull(i)) {
           columnBuilder.appendNull();
         } else {
           columnBuilder.write(column, i);
+          patternLength = ((RLEPatternColumn) column.getObject(i)).getPositionCount();
         }
-        resultTsBlockBuilder.declarePosition();
+        for (int c = countFlag; c < countFlag + patternLength; c++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(c));
+          resultTsBlockBuilder.declarePosition();
+        }
+        countFlag += patternLength;
       }
     } else {
-      for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
-        timeColumnBuilder.writeLong(timeColumn.getLong(i));
+      for (int i = 0, size = column.getPositionCount(); i < size; i++) {
         columnBuilder.write(column, i);
-        resultTsBlockBuilder.declarePosition();
+        int patternLength = ((RLEPatternColumn) column.getObject(i)).getPositionCount();
+        for (int c = countFlag; c < countFlag + patternLength; c++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(c));
+          resultTsBlockBuilder.declarePosition();
+        }
+        countFlag += patternLength;
+      }
+    }
+  }
+
+  private void appendToBuilder(TsBlock tsBlock) {
+    Column column = tsBlock.getColumn(0);
+    if (column instanceof RLEColumn) {
+      appendRLEToBuilder(tsBlock);
+    } else {
+      TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
+      TimeColumn timeColumn = tsBlock.getTimeColumn();
+      ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
+      if (column.mayHaveNull()) {
+        for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(i));
+          if (column.isNull(i)) {
+            columnBuilder.appendNull();
+          } else {
+            columnBuilder.write(column, i);
+          }
+          resultTsBlockBuilder.declarePosition();
+        }
+      } else {
+        for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(i));
+          columnBuilder.write(column, i);
+          resultTsBlockBuilder.declarePosition();
+        }
       }
     }
   }

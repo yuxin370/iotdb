@@ -87,7 +87,27 @@ public class DoubleColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeDouble(column.getDouble(index));
+    if (column instanceof RLEColumn) {
+      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+      int count = rlePattern.getPositionCount();
+      if (rlePattern.isRLEMode()) {
+        double curValue = rlePattern.getDouble(0);
+        for (int i = 0; i < count; i++) {
+          writeDouble(curValue);
+        }
+      } else {
+        for (int i = 0; i < count; i++) {
+          if (rlePattern.isNull(i)) {
+            appendNull();
+          } else {
+            writeDouble(rlePattern.getDouble(i));
+          }
+        }
+      }
+      return this;
+    } else {
+      return writeDouble(column.getDouble(index));
+    }
   }
 
   @Override

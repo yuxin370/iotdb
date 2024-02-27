@@ -34,6 +34,8 @@ import org.apache.iotdb.service.rpc.thrift.TSQueryNonAlignDataSet;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.sql.BatchUpdateException;
@@ -50,6 +52,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class IoTDBStatement implements Statement {
+  private static final Logger LOGGER = LoggerFactory.getLogger(IoTDBStatement.class);
 
   ZoneId zoneId;
   private ResultSet resultSet = null;
