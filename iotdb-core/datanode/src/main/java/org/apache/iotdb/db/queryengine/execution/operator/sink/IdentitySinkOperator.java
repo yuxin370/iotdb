@@ -27,10 +27,13 @@ import org.apache.iotdb.db.queryengine.execution.operator.OperatorContext;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public class IdentitySinkOperator implements Operator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(IdentitySinkOperator.class);
 
   private final OperatorContext operatorContext;
   private final List<Operator> children;
@@ -48,6 +51,9 @@ public class IdentitySinkOperator implements Operator {
       List<Operator> children,
       DownStreamChannelIndex downStreamChannelIndex,
       ISinkHandle sinkHandle) {
+    for (int i = 0; i < children.size(); i++) {
+      LOGGER.info("[tyx] " + children.get(i).toString());
+    }
     this.operatorContext = operatorContext;
     this.children = children;
     this.downStreamChannelIndex = downStreamChannelIndex;
@@ -56,6 +62,7 @@ public class IdentitySinkOperator implements Operator {
 
   @Override
   public boolean hasNext() throws Exception {
+    LOGGER.info("[tyx] hasnext");
     int currentIndex = downStreamChannelIndex.getCurrentIndex();
     boolean currentChannelClosed = sinkHandle.isChannelClosed(currentIndex);
     if (!currentChannelClosed && children.get(currentIndex).hasNext()) {
@@ -93,6 +100,7 @@ public class IdentitySinkOperator implements Operator {
 
   @Override
   public TsBlock next() throws Exception {
+    LOGGER.info("[tyx] next");
     if (needToReturnNull) {
       needToReturnNull = false;
       return null;

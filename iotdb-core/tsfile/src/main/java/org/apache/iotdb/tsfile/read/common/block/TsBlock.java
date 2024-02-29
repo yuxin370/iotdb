@@ -540,8 +540,12 @@ public class TsBlock {
           break;
         case RLEPATTERN:
           valueColumns[i].isNull()[updateIdx] = false;
-          ((RLEColumn) valueColumns[i]).getValues()[updateIdx] =
-              ((RLEColumn) sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex);
+          ((RLEColumn) valueColumns[i])
+              .updateValue(
+                  updateIdx,
+                  ((RLEColumn) sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex));
+          // ((RLEColumn) valueColumns[i]).getValues()[updateIdx] =
+          //     ((RLEColumn) sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex);
           break;
         default:
           throw new UnSupportedDataTypeException(

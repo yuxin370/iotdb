@@ -26,11 +26,15 @@ import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public abstract class SingleInputAggregationOperator implements ProcessOperator {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(SingleInputAggregationOperator.class);
 
   protected final OperatorContext operatorContext;
   protected final boolean ascending;
@@ -53,6 +57,7 @@ public abstract class SingleInputAggregationOperator implements ProcessOperator 
       Operator child,
       boolean ascending,
       long maxReturnSize) {
+    LOGGER.info("[tyx] construct a SingleInputAggrefationOperator");
     this.operatorContext = operatorContext;
     this.ascending = ascending;
     this.child = child;

@@ -30,12 +30,16 @@ import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.read.reader.page.PageReader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.List;
 
 public class ChunkReader extends AbstractChunkReader {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ChunkReader.class);
 
   private final ChunkHeader chunkHeader;
   private final ByteBuffer chunkDataBuffer;
@@ -44,6 +48,7 @@ public class ChunkReader extends AbstractChunkReader {
   @SuppressWarnings("unchecked")
   public ChunkReader(Chunk chunk, long readStopTime, Filter queryFilter) throws IOException {
     super(readStopTime, queryFilter);
+    LOGGER.info("[tyx] construct a chunkReader");
     this.chunkHeader = chunk.getHeader();
     this.chunkDataBuffer = chunk.getData();
     this.deleteIntervalList = chunk.getDeleteIntervalList();
@@ -184,6 +189,7 @@ public class ChunkReader extends AbstractChunkReader {
 
   public static ByteBuffer deserializePageData(
       PageHeader pageHeader, ByteBuffer chunkBuffer, ChunkHeader chunkHeader) throws IOException {
+    LOGGER.info("[tyx] decompressing chunk data");
     IUnCompressor unCompressor = IUnCompressor.getUnCompressor(chunkHeader.getCompressionType());
     ByteBuffer compressedPageBody = readCompressedPageData(pageHeader, chunkBuffer);
     return uncompressPageData(pageHeader, unCompressor, compressedPageBody);

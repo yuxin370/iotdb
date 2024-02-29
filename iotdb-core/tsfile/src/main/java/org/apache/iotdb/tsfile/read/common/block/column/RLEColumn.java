@@ -20,8 +20,11 @@
 package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -29,7 +32,11 @@ import java.util.Optional;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.checkValidRegion;
 
+// a column store values in RLEPattern.
+// attention: all the functions overwrited, use index indexing the raw data.
+// all the functions named "*RLE*", use index indexing to the RLEPatterns.
 public class RLEColumn implements Column {
+  private static final Logger LOGGER = LoggerFactory.getLogger(RLEColumn.class);
 
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(RunLengthEncodedColumn.class).instanceSize();
@@ -82,9 +89,25 @@ public class RLEColumn implements Column {
     return values;
   }
 
+  public Object getValue(int position) {
+    // position correspoding to the index in raw data
+    int index = 0;
+    int accumulator = 0;
+    for (index = 0; index < this.positionCount; index++) {
+      if (accumulator + values[index].getPositionCount() >= position) {
+        break;
+      }
+      accumulator += values[index].getPositionCount();
+    }
+    if (arrayOffset + index > positionCount) {
+      throw new IllegalArgumentException("position is illegal");
+    }
+    return values[arrayOffset + index].getObject(position - accumulator);
+  }
+
   @Override
   public Object getObject(int position) {
-    return getRLEPattern(position);
+    return getValue(position);
   }
 
   @Override
@@ -117,14 +140,43 @@ public class RLEColumn implements Column {
     return values;
   }
 
-  // @Override
-  // public TsPrimitiveType getTsPrimitiveType(int position) {
-  //   if(valueIsNull != null && !valueIsNull[arrayOffset]){
-  //     return values[arrayOffset + position].getTsPrimitiveType(0);
-  //   }else{
-  //     return null;
-  //   }
-  // }
+  @Override
+  public TsPrimitiveType getTsPrimitiveType(int position) {
+    // position correspoding to the index in raw data
+    int index = 0;
+    int accumulator = 0;
+    for (index = 0; index < this.positionCount; index++) {
+      if (accumulator + values[index].getPositionCount() >= position) {
+        break;
+      }
+      accumulator += values[index].getPositionCount();
+    }
+
+    return values[index].getTsPrimitiveType(position - accumulator);
+  }
+
+  public TsPrimitiveType getTsPrimitiveTypeRLE(int position) {
+    LOGGER.info(
+        "[tyx] position : "
+            + position
+            + " , the max positionCount bound : "
+            + positionCount
+            + "the valueLength : "
+            + values.length);
+    RLEPatternColumn curRLEPatternColumn = getRLEPattern(position);
+    int Mode = curRLEPatternColumn.isRLEMode() ? 0 : 1;
+    int RLEPatternCount = curRLEPatternColumn.getPositionCount();
+    TsPrimitiveType[] values;
+    if (Mode == 1) {
+      values = new TsPrimitiveType[RLEPatternCount];
+      for (int i = 0; i < RLEPatternCount; i++) {
+        values[i] = curRLEPatternColumn.getTsPrimitiveType(i);
+      }
+    } else {
+      values = new TsPrimitiveType[] {curRLEPatternColumn.getTsPrimitiveType(0)};
+    }
+    return new TsPrimitiveType.TsRLEPattern(values, Mode, RLEPatternCount);
+  }
 
   @Override
   public boolean mayHaveNull() {
@@ -133,6 +185,20 @@ public class RLEColumn implements Column {
 
   @Override
   public boolean isNull(int position) {
+    // position correspoding to the index in raw data
+    int index = 0;
+    int accumulator = 0;
+    for (index = 0; index < this.positionCount; index++) {
+      if (accumulator + values[index].getPositionCount() >= position) {
+        break;
+      }
+      accumulator += values[index].getPositionCount();
+    }
+    return (valueIsNull != null && valueIsNull[index + arrayOffset])
+        || (values[index + arrayOffset].isNull(position - accumulator));
+  }
+
+  public boolean isNullRLE(int position) {
     return valueIsNull != null && valueIsNull[position + arrayOffset];
   }
 
@@ -197,6 +263,30 @@ public class RLEColumn implements Column {
 
   @Override
   public Column subColumn(int fromIndex) {
+    // position correspoding to the index in raw data
+    int index = 0;
+    int accumulator = 0;
+    for (index = 0; index < this.positionCount; index++) {
+      if (accumulator + values[index].getPositionCount() >= fromIndex) {
+        break;
+      }
+      accumulator += values[index].getPositionCount();
+    }
+    if (index > positionCount) {
+      throw new IllegalArgumentException("fromIndex is not valid");
+    }
+    if (accumulator == fromIndex) {
+      return new RLEColumn(arrayOffset + index, positionCount - index, valueIsNull, values);
+    } else {
+      /*reconstruct the values  */
+      RLEPatternColumn[] tmpValues = new RLEPatternColumn[positionCount];
+      tmpValues = Arrays.copyOf(values, positionCount);
+      tmpValues[index] = (RLEPatternColumn) tmpValues[index].subColumn(fromIndex - accumulator);
+      return new RLEColumn(arrayOffset + index, positionCount - index, valueIsNull, tmpValues);
+    }
+  }
+
+  public Column subColumnRLE(int fromIndex) {
     if (fromIndex > positionCount) {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
@@ -260,5 +350,18 @@ public class RLEColumn implements Column {
   @Override
   public int getInstanceSize() {
     return INSTANCE_SIZE;
+  }
+
+  // position correspoding to the index in raw data
+  public void updateValue(int position, Object value) {
+    int index = 0;
+    int accumulator = 0;
+    for (index = 0; index < this.positionCount; index++) {
+      if (accumulator + values[index].getPositionCount() >= position) {
+        break;
+      }
+      accumulator += values[index].getPositionCount();
+    }
+    values[index].getObjects()[position - accumulator] = value;
   }
 }

@@ -31,6 +31,9 @@ import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.utils.Pair;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,6 +46,8 @@ import static org.apache.iotdb.db.queryengine.execution.operator.AggregationUtil
 
 public abstract class AbstractSeriesAggregationScanOperator extends AbstractDataSourceOperator {
 
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(AbstractSeriesAggregationScanOperator.class);
   protected final boolean ascending;
   protected final boolean isGroupByQuery;
 
@@ -79,6 +84,7 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
       boolean outputEndTime,
       GroupByTimeParameter groupByTimeParameter,
       long maxReturnSize) {
+    LOGGER.info("[tyx] constructing AbstractSeriesAggregationScanOperator");
     this.sourceId = sourceId;
     this.operatorContext = context;
     this.ascending = ascending;
@@ -217,6 +223,7 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
   }
 
   private boolean calcFromRawData(TsBlock tsBlock) {
+    LOGGER.info("[tyx] tsBlock == " + tsBlock == null ? "null" : "not null");
     Pair<Boolean, TsBlock> calcResult =
         calculateAggregationFromRawData(tsBlock, aggregators, curTimeRange, ascending);
     inputTsBlock = calcResult.getRight();
@@ -317,6 +324,7 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
   @SuppressWarnings({"squid:S3776", "squid:S135", "squid:S3740"})
   protected boolean readAndCalcFromPage() throws IOException {
     // start stopwatch
+    LOGGER.info("[tyx] readAndCalFromPage");
     long start = System.nanoTime();
     try {
       while (System.nanoTime() - start < leftRuntimeOfOneNextCall && seriesScanUtil.hasNextPage()) {
@@ -349,6 +357,7 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
         }
 
         // calc from page data
+        LOGGER.info("[tyx] readAndCalFromPage  read next Page");
         TsBlock tsBlock = seriesScanUtil.nextPage();
         if (tsBlock == null || tsBlock.isEmpty()) {
           continue;

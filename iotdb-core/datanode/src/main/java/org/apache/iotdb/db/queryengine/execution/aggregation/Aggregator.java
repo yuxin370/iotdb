@@ -29,6 +29,9 @@ import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.utils.BitMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -37,7 +40,7 @@ import static org.apache.iotdb.db.queryengine.metric.QueryExecutionMetricSet.AGG
 import static org.apache.iotdb.db.queryengine.metric.QueryExecutionMetricSet.AGGREGATION_FROM_STATISTICS;
 
 public class Aggregator {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(Aggregator.class);
   protected final Accumulator accumulator;
   // In some intermediate result input, inputLocation[] should include two columns
   protected List<InputLocation[]> inputLocationList;
@@ -63,6 +66,7 @@ public class Aggregator {
 
   // Used for SeriesAggregateScanOperator and RawDataAggregateOperator
   public void processTsBlock(TsBlock tsBlock, BitMap bitMap, int lastIndex) {
+    LOGGER.info("[tyx] Aggregator.processTsblock ");
     long startTime = System.nanoTime();
     try {
       checkArgument(
@@ -77,6 +81,7 @@ public class Aggregator {
         int index = inputLocations[0].getValueColumnIndex();
         // for count_time, time column is also its value column
         timeAndValueColumn[1] = index == -1 ? timeAndValueColumn[0] : tsBlock.getColumn(index);
+        LOGGER.info("[tyx] valuecolumn.type = " + timeAndValueColumn[1].toString());
         accumulator.addInput(timeAndValueColumn, bitMap, lastIndex);
       }
     } finally {

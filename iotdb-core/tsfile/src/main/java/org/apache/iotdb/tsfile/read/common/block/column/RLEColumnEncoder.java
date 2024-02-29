@@ -63,10 +63,10 @@ public class RLEColumnEncoder implements ColumnEncoder {
     ColumnEncoder.serializeNullIndicators(output, column);
     RLEPatternColumnEncoder columnEncoder =
         (RLEPatternColumnEncoder) ColumnEncoderFactory.get(ColumnEncoding.RLE_PATTERN);
-    int positionCount = column.getPositionCount();
-    if (column.mayHaveNull()) {
+    int positionCount = RleColumn.getPositionCount();
+    if (RleColumn.mayHaveNull()) {
       for (int i = 0; i < positionCount; i++) {
-        if (!column.isNull(i)) {
+        if (!RleColumn.isNullRLE(i)) {
           columnEncoder.writeColumn(output, RleColumn.getRLEPattern(i));
         }
       }

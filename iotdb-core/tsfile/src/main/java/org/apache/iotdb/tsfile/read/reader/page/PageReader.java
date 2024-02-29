@@ -104,6 +104,7 @@ public class PageReader implements IPageReader {
       Decoder valueDecoder,
       Decoder timeDecoder,
       Filter recordFilter) {
+    LOGGER.info("[tyx] construct a page reader!");
     this.dataType = dataType;
     this.valueDecoder = valueDecoder;
     this.timeDecoder = timeDecoder;
@@ -264,7 +265,12 @@ public class PageReader implements IPageReader {
   public TsBlock getAllSatisfiedData() throws IOException {
     /** only direct computing for rle encoder supported. */
     if (valueDecoder instanceof RleDecoder) {
+      LOGGER.info("[tyx] in getAllSatisfiedData decoder is a RleDecoder!");
       return getAllSatisfiedDataDirectComputing();
+    } else {
+      LOGGER.info(
+          "[tyx] in getAllSatisfiedData decoder is not a RleDecoder, but a "
+              + valueDecoder.toString());
     }
     TsBlockBuilder builder;
     int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();

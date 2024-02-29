@@ -27,9 +27,13 @@ import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.utils.BitMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class AvgAccumulator implements Accumulator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AvgAccumulator.class);
 
   private final TSDataType seriesDataType;
   private long countValue;
@@ -42,6 +46,11 @@ public class AvgAccumulator implements Accumulator {
 
   @Override
   public void addInput(Column[] column, BitMap bitMap, int lastIndex) {
+    LOGGER.info(
+        "[tyx] countaccumulator addinput columntype = "
+            + column[1].getDataType()
+            + "coulumn = "
+            + column[1].toString());
     switch (seriesDataType) {
       case INT32:
         addIntInput(column, bitMap, lastIndex);
