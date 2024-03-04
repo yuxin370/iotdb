@@ -42,11 +42,6 @@ public class CountAccumulator implements Accumulator {
   // Column should be like: | Time | Value |
   @Override
   public void addInput(Column[] column, BitMap bitMap, int lastIndex) {
-    LOGGER.info(
-        "[tyx] countaccumulator addinput columntype = "
-            + column[1].getDataType()
-            + "coulumn = "
-            + column[1].toString());
     int curPositionCount = column[0].getPositionCount();
 
     if (!column[1].mayHaveNull()

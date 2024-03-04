@@ -62,7 +62,6 @@ public class IdentitySinkOperator implements Operator {
 
   @Override
   public boolean hasNext() throws Exception {
-    LOGGER.info("[tyx] hasnext");
     int currentIndex = downStreamChannelIndex.getCurrentIndex();
     boolean currentChannelClosed = sinkHandle.isChannelClosed(currentIndex);
     if (!currentChannelClosed && children.get(currentIndex).hasNext()) {
@@ -100,7 +99,6 @@ public class IdentitySinkOperator implements Operator {
 
   @Override
   public TsBlock next() throws Exception {
-    LOGGER.info("[tyx] next");
     if (needToReturnNull) {
       needToReturnNull = false;
       return null;

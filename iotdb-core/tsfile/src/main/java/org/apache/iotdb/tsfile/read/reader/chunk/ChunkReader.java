@@ -48,7 +48,6 @@ public class ChunkReader extends AbstractChunkReader {
   @SuppressWarnings("unchecked")
   public ChunkReader(Chunk chunk, long readStopTime, Filter queryFilter) throws IOException {
     super(readStopTime, queryFilter);
-    LOGGER.info("[tyx] construct a chunkReader");
     this.chunkHeader = chunk.getHeader();
     this.chunkDataBuffer = chunk.getData();
     this.deleteIntervalList = chunk.getDeleteIntervalList();
@@ -189,7 +188,6 @@ public class ChunkReader extends AbstractChunkReader {
 
   public static ByteBuffer deserializePageData(
       PageHeader pageHeader, ByteBuffer chunkBuffer, ChunkHeader chunkHeader) throws IOException {
-    LOGGER.info("[tyx] decompressing chunk data");
     IUnCompressor unCompressor = IUnCompressor.getUnCompressor(chunkHeader.getCompressionType());
     ByteBuffer compressedPageBody = readCompressedPageData(pageHeader, chunkBuffer);
     return uncompressPageData(pageHeader, unCompressor, compressedPageBody);

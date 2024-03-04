@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.encoding.decoder;
 import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.utils.Binary;
@@ -225,7 +226,7 @@ public abstract class RleDecoder extends Decoder {
   }
 
   @Override
-  public RLEPatternColumn readRLEPattern(ByteBuffer buffer) {
+  public RLEPatternColumn readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
     throw new TsFileDecodingException("Method readRLEPattern is not supproted by RleDecoder");
   }
 

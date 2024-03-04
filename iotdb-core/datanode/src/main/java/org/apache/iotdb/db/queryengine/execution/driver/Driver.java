@@ -242,7 +242,6 @@ public abstract class Driver implements IDriver {
         }
       }
 
-      LOGGER.info("[tyx] get final result?");
       return NOT_BLOCKED;
     } catch (Throwable t) {
       List<StackTraceElement> interrupterStack = exclusiveLock.getInterrupterStack();

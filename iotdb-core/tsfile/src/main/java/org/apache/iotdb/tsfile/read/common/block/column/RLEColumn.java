@@ -156,13 +156,6 @@ public class RLEColumn implements Column {
   }
 
   public TsPrimitiveType getTsPrimitiveTypeRLE(int position) {
-    LOGGER.info(
-        "[tyx] position : "
-            + position
-            + " , the max positionCount bound : "
-            + positionCount
-            + "the valueLength : "
-            + values.length);
     RLEPatternColumn curRLEPatternColumn = getRLEPattern(position);
     int Mode = curRLEPatternColumn.isRLEMode() ? 0 : 1;
     int RLEPatternCount = curRLEPatternColumn.getPositionCount();

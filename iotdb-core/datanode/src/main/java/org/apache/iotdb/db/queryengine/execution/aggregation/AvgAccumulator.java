@@ -46,11 +46,6 @@ public class AvgAccumulator implements Accumulator {
 
   @Override
   public void addInput(Column[] column, BitMap bitMap, int lastIndex) {
-    LOGGER.info(
-        "[tyx] countaccumulator addinput columntype = "
-            + column[1].getDataType()
-            + "coulumn = "
-            + column[1].toString());
     switch (seriesDataType) {
       case INT32:
         addIntInput(column, bitMap, lastIndex);

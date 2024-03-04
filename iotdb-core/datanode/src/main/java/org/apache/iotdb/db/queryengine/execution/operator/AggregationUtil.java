@@ -98,14 +98,12 @@ public class AggregationUtil {
       List<Aggregator> aggregators,
       TimeRange curTimeRange,
       boolean ascending) {
-    LOGGER.info("[tyx] in calculateAggreagationFromRawData");
     if (inputTsBlock == null || inputTsBlock.isEmpty()) {
       return new Pair<>(false, inputTsBlock);
     }
 
     // check if the tsBlock does not contain points in current interval
     if (satisfiedTimeRange(inputTsBlock, curTimeRange, ascending)) {
-      LOGGER.info("[tyx] calculateAggreagationFromRawData satisfiedTimeRange");
       // skip points that cannot be calculated
       if ((ascending && inputTsBlock.getStartTime() < curTimeRange.getMin())
           || (!ascending && inputTsBlock.getStartTime() > curTimeRange.getMax())) {
@@ -128,7 +126,6 @@ public class AggregationUtil {
   private static TsBlock process(
       TsBlock inputTsBlock, TimeRange curTimeRange, List<Aggregator> aggregators) {
     // Get the row which need to be processed by aggregator
-    LOGGER.info("[tyx] process");
 
     IWindow curWindow = new TimeWindow(curTimeRange);
     TimeColumn timeColumn = inputTsBlock.getTimeColumn();
@@ -161,7 +158,6 @@ public class AggregationUtil {
       List<? extends Aggregator> aggregators,
       long outputTime,
       long endTime) {
-    LOGGER.info("[tyx] appenAggregationResult");
     TimeColumnBuilder timeColumnBuilder = tsBlockBuilder.getTimeColumnBuilder();
     // Use start time of current time range as time column
     timeColumnBuilder.writeLong(outputTime);

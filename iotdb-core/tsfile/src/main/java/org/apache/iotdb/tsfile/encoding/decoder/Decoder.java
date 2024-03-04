@@ -199,7 +199,7 @@ public abstract class Decoder {
     throw new TsFileDecodingException("Method readBigDecimal is not supported by Decoder");
   }
 
-  public RLEPatternColumn readRLEPattern(ByteBuffer buffer) {
+  public RLEPatternColumn readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
     throw new TsFileDecodingException("Method readRLEPattern is not supported by Decoder");
   }
 

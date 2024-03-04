@@ -84,7 +84,6 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
       boolean outputEndTime,
       GroupByTimeParameter groupByTimeParameter,
       long maxReturnSize) {
-    LOGGER.info("[tyx] constructing AbstractSeriesAggregationScanOperator");
     this.sourceId = sourceId;
     this.operatorContext = context;
     this.ascending = ascending;
@@ -223,7 +222,6 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
   }
 
   private boolean calcFromRawData(TsBlock tsBlock) {
-    LOGGER.info("[tyx] tsBlock == " + tsBlock == null ? "null" : "not null");
     Pair<Boolean, TsBlock> calcResult =
         calculateAggregationFromRawData(tsBlock, aggregators, curTimeRange, ascending);
     inputTsBlock = calcResult.getRight();
@@ -324,7 +322,6 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
   @SuppressWarnings({"squid:S3776", "squid:S135", "squid:S3740"})
   protected boolean readAndCalcFromPage() throws IOException {
     // start stopwatch
-    LOGGER.info("[tyx] readAndCalFromPage");
     long start = System.nanoTime();
     try {
       while (System.nanoTime() - start < leftRuntimeOfOneNextCall && seriesScanUtil.hasNextPage()) {
@@ -357,7 +354,6 @@ public abstract class AbstractSeriesAggregationScanOperator extends AbstractData
         }
 
         // calc from page data
-        LOGGER.info("[tyx] readAndCalFromPage  read next Page");
         TsBlock tsBlock = seriesScanUtil.nextPage();
         if (tsBlock == null || tsBlock.isEmpty()) {
           continue;

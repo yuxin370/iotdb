@@ -57,7 +57,6 @@ public abstract class SingleInputAggregationOperator implements ProcessOperator 
       Operator child,
       boolean ascending,
       long maxReturnSize) {
-    LOGGER.info("[tyx] construct a SingleInputAggrefationOperator");
     this.operatorContext = operatorContext;
     this.ascending = ascending;
     this.child = child;

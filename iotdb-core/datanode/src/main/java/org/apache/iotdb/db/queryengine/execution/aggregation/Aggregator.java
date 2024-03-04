@@ -66,7 +66,6 @@ public class Aggregator {
 
   // Used for SeriesAggregateScanOperator and RawDataAggregateOperator
   public void processTsBlock(TsBlock tsBlock, BitMap bitMap, int lastIndex) {
-    LOGGER.info("[tyx] Aggregator.processTsblock ");
     long startTime = System.nanoTime();
     try {
       checkArgument(
@@ -81,7 +80,6 @@ public class Aggregator {
         int index = inputLocations[0].getValueColumnIndex();
         // for count_time, time column is also its value column
         timeAndValueColumn[1] = index == -1 ? timeAndValueColumn[0] : tsBlock.getColumn(index);
-        LOGGER.info("[tyx] valuecolumn.type = " + timeAndValueColumn[1].toString());
         accumulator.addInput(timeAndValueColumn, bitMap, lastIndex);
       }
     } finally {

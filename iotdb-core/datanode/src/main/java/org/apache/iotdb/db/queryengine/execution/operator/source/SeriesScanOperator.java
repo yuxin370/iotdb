@@ -153,7 +153,6 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
   }
 
   private void appendRLEToBuilder(TsBlock tsBlock) {
-    LOGGER.info("[tyx] append to RLE Builder!");
     TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
     TimeColumn timeColumn = tsBlock.getTimeColumn();
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
