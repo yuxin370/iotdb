@@ -118,6 +118,18 @@ public class TsBlock {
     return retainedSizeInBytes;
   }
 
+  /** check if any of the columns is RLEColumn. If is, reclaim it to initial columnType. */
+  public TsBlock reclaim() {
+    int columnCount = getValueColumnCount();
+    for (int i = 0; i < columnCount; i++) {
+      if (!(valueColumns[i] instanceof RLEColumn)) {
+        continue;
+      }
+      valueColumns[i] = (Column) ((RLEColumn) valueColumns[i]).reclaim();
+    }
+    return this;
+  }
+
   /**
    * @param positionOffset start offset
    * @param length slice length

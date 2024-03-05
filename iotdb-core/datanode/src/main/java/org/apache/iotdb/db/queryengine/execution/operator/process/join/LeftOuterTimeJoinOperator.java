@@ -33,6 +33,8 @@ import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import static com.google.common.util.concurrent.Futures.successfulAsList;
 
 public class LeftOuterTimeJoinOperator implements ProcessOperator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LeftOuterTimeJoinOperator.class);
 
   private final OperatorContext operatorContext;
 

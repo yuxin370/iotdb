@@ -140,7 +140,7 @@ public class TimeColumn implements Column {
     long[] newValue = new long[newCount];
     for (int i = 0, j = 0; i < positionCount; i++) {
       if (valueRetained[i] == true) {
-        newValue[j] = values[j];
+        newValue[j] = values[i];
         j++;
       }
     }

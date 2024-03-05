@@ -30,6 +30,7 @@ import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
@@ -38,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -152,7 +154,7 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
     return false;
   }
 
-  private void appendRLEToBuilder(TsBlock tsBlock) {
+  private void appendRLEToValueBuilder(TsBlock tsBlock) {
     TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
     TimeColumn timeColumn = tsBlock.getTimeColumn();
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
@@ -164,22 +166,60 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
         if (column.isNullRLE(i)) {
           columnBuilder.appendNull();
         } else {
-          columnBuilder.write(column, i);
+          columnBuilder.writeRLEPattern(column, i);
           patternLength = ((RLEPatternColumn) column.getRLEPattern(i)).getPositionCount();
         }
+        resultTsBlockBuilder.declarePositions(patternLength);
         for (int c = countFlag; c < countFlag + patternLength; c++) {
           timeColumnBuilder.writeLong(timeColumn.getLong(c));
-          resultTsBlockBuilder.declarePosition();
         }
         countFlag += patternLength;
       }
     } else {
       for (int i = 0, size = column.getPositionCount(); i < size; i++) {
-        columnBuilder.write(column, i);
+        columnBuilder.writeRLEPattern(column, i);
         int patternLength = ((RLEPatternColumn) column.getRLEPattern(i)).getPositionCount();
+        resultTsBlockBuilder.declarePositions(patternLength);
         for (int c = countFlag; c < countFlag + patternLength; c++) {
           timeColumnBuilder.writeLong(timeColumn.getLong(c));
-          resultTsBlockBuilder.declarePosition();
+        }
+        countFlag += patternLength;
+      }
+    }
+  }
+
+  private void appendRLEToBuilder(TsBlock tsBlock) {
+    if (resultTsBlockBuilder.getType(0) != TSDataType.RLEPATTERN) {
+      resultTsBlockBuilder.buildValueColumnBuilders(
+          Collections.singletonList(TSDataType.RLEPATTERN));
+    }
+    TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
+    TimeColumn timeColumn = tsBlock.getTimeColumn();
+    RLEColumnBuilder columnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(0);
+    RLEColumn column = (RLEColumn) tsBlock.getColumn(0);
+    int countFlag = 0;
+    if (column.mayHaveNull()) {
+      for (int i = 0, size = column.getPositionCount(); i < size; i++) {
+        int patternLength = 1;
+        if (column.isNullRLE(i)) {
+          columnBuilder.appendNull();
+        } else {
+          columnBuilder.writeRLEPattern(column, i);
+          patternLength = ((RLEPatternColumn) column.getRLEPattern(i)).getPositionCount();
+        }
+        resultTsBlockBuilder.declarePositions(patternLength);
+        for (int c = countFlag; c < countFlag + patternLength; c++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(c));
+        }
+        countFlag += patternLength;
+      }
+    } else {
+      for (int i = 0, size = column.getPositionCount(); i < size; i++) {
+        columnBuilder.writeRLEPattern(column, i);
+        int patternLength = ((RLEPatternColumn) column.getRLEPattern(i)).getPositionCount();
+        resultTsBlockBuilder.declarePositions(patternLength);
+        for (int c = countFlag; c < countFlag + patternLength; c++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(c));
         }
         countFlag += patternLength;
       }

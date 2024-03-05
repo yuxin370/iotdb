@@ -168,15 +168,15 @@ public class BinaryColumn implements Column {
       newValueIsNull = null;
       for (int i = 0, j = 0; i < positionCount; i++) {
         if (valueRetained[i] == true) {
-          newValue[j] = values[j];
+          newValue[j] = values[i];
           j++;
         }
       }
     } else {
       for (int i = 0, j = 0; i < positionCount; i++) {
         if (valueRetained[i] == true) {
-          newValue[j] = values[j];
-          newValueIsNull[j] = valueIsNull[j];
+          newValue[j] = values[i];
+          newValueIsNull[j] = valueIsNull[i];
           j++;
         }
       }

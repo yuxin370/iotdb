@@ -23,6 +23,8 @@ import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -31,6 +33,7 @@ import static java.lang.Math.max;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.calculateBlockResetSize;
 
 public class RLEColumnBuilder implements ColumnBuilder {
+  private static final Logger LOGGER = LoggerFactory.getLogger(RLEColumnBuilder.class);
 
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(IntColumnBuilder.class).instanceSize();
@@ -101,6 +104,18 @@ public class RLEColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
+    // if here need to be modified to the raw index ?
+    // current RLEPattern index supported.
+    if (!(column instanceof RLEColumn)) {
+      throw new UnsupportedOperationException(
+          "for RLEColumnBuilder.write, only RLEColumn supported.");
+    } else {
+      return writeRLEPattern(((RLEColumn) column).getRLEPattern(index));
+    }
+  }
+
+  @Override
+  public ColumnBuilder writeRLEPattern(Column column, int index) {
     if (!(column instanceof RLEColumn)) {
       throw new UnsupportedOperationException(
           "for RLEColumnBuilder.write, only RLEColumn supported.");

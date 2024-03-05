@@ -25,6 +25,8 @@ import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.checkValidRegion;
 
 public class RLEPatternColumn implements Column {
+  private static final Logger LOGGER = LoggerFactory.getLogger(RLEPatternColumn.class);
 
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(RLEPatternColumn.class).instanceSize();
@@ -318,7 +321,19 @@ public class RLEPatternColumn implements Column {
     if (fromIndex > positionCount) {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
-    return new RLEPatternColumn(value, positionCount - fromIndex, type);
+    if (type == RunLengthMode.RLE) {
+      return new RLEPatternColumn(value, positionCount - fromIndex, type);
+    } else {
+      Column tmpValue = value.subColumn(fromIndex);
+      return new RLEPatternColumn(tmpValue, positionCount - fromIndex, type);
+    }
+  }
+
+  public Column subColumnHead(int toIndex) {
+    if (toIndex > positionCount) {
+      throw new IllegalArgumentException("fromIndex is not valid");
+    }
+    return new RLEPatternColumn(value, toIndex, type);
   }
 
   @Override
@@ -335,6 +350,7 @@ public class RLEPatternColumn implements Column {
     if (type == RunLengthMode.RLE || newCount == positionCount) {
       return new RLEPatternColumn(value, newCount, type);
     } else {
+      LOGGER.info("in RLEPattern subColumn(valueRetained), retained value count =" + newCount);
       return new RLEPatternColumn(value.subColumn(valueRetained), newCount, type);
     }
   }

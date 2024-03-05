@@ -23,6 +23,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -31,6 +33,7 @@ import static io.airlift.slice.SizeOf.sizeOfBooleanArray;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.checkValidRegion;
 
 public class BooleanColumn implements Column {
+  private static final Logger LOGGER = LoggerFactory.getLogger(BooleanColumn.class);
 
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(BooleanColumn.class).instanceSize();
@@ -166,15 +169,15 @@ public class BooleanColumn implements Column {
       newValueIsNull = null;
       for (int i = 0, j = 0; i < positionCount; i++) {
         if (valueRetained[i] == true) {
-          newValue[j] = values[j];
+          newValue[j] = values[i];
           j++;
         }
       }
     } else {
       for (int i = 0, j = 0; i < positionCount; i++) {
         if (valueRetained[i] == true) {
-          newValue[j] = values[j];
-          newValueIsNull[j] = valueIsNull[j];
+          newValue[j] = values[i];
+          newValueIsNull[j] = valueIsNull[i];
           j++;
         }
       }

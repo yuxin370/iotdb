@@ -24,6 +24,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -32,6 +34,7 @@ import static java.lang.Math.max;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.calculateBlockResetSize;
 
 public class BooleanColumnBuilder implements ColumnBuilder {
+  private static final Logger LOGGER = LoggerFactory.getLogger(BooleanColumnBuilder.class);
 
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(BooleanColumnBuilder.class).instanceSize();
@@ -88,26 +91,34 @@ public class BooleanColumnBuilder implements ColumnBuilder {
   @Override
   public ColumnBuilder write(Column column, int index) {
     if (column instanceof RLEColumn) {
-      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
-      int count = rlePattern.getPositionCount();
-      if (rlePattern.isRLEMode()) {
-        boolean curValue = rlePattern.getBoolean(0);
-        for (int i = 0; i < count; i++) {
-          writeBoolean(curValue);
-        }
-      } else {
-        for (int i = 0; i < count; i++) {
-          if (rlePattern.isNull(i)) {
-            appendNull();
-          } else {
-            writeBoolean(rlePattern.getBoolean(i));
-          }
-        }
-      }
-      return this;
+      return writeBoolean((boolean) ((RLEColumn) column).getValue(index));
     } else {
       return writeBoolean(column.getBoolean(index));
     }
+  }
+
+  @Override
+  public ColumnBuilder writeRLEPattern(Column column, int index) {
+    if (!(column instanceof RLEColumn)) {
+      throw new IllegalArgumentException("function writeRLEPattern only support RLEColumns.");
+    }
+    RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+    int count = rlePattern.getPositionCount();
+    if (rlePattern.isRLEMode()) {
+      boolean curValue = rlePattern.getBoolean(0);
+      for (int i = 0; i < count; i++) {
+        writeBoolean(curValue);
+      }
+    } else {
+      for (int i = 0; i < count; i++) {
+        if (rlePattern.isNull(i)) {
+          appendNull();
+        } else {
+          writeBoolean(rlePattern.getBoolean(i));
+        }
+      }
+    }
+    return this;
   }
 
   @Override

@@ -31,6 +31,8 @@ import org.apache.iotdb.tsfile.read.common.block.column.TsBlockSerde;
 import org.apache.iotdb.tsfile.utils.Binary;
 
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
@@ -42,6 +44,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class IoTDBRpcDataSet {
+  private static final Logger LOGGER = LoggerFactory.getLogger(IoTDBRpcDataSet.class);
 
   public static final String TIMESTAMP_STR = "Time";
   public static final int START_INDEX = 2;

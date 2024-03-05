@@ -88,26 +88,34 @@ public class LongColumnBuilder implements ColumnBuilder {
   @Override
   public ColumnBuilder write(Column column, int index) {
     if (column instanceof RLEColumn) {
-      RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
-      int count = rlePattern.getPositionCount();
-      if (rlePattern.isRLEMode()) {
-        long curValue = rlePattern.getLong(0);
-        for (int i = 0; i < count; i++) {
-          writeLong(curValue);
-        }
-      } else {
-        for (int i = 0; i < count; i++) {
-          if (rlePattern.isNull(i)) {
-            appendNull();
-          } else {
-            writeLong(rlePattern.getLong(i));
-          }
-        }
-      }
-      return this;
+      return writeLong((long) ((RLEColumn) column).getValue(index));
     } else {
       return writeLong(column.getLong(index));
     }
+  }
+
+  @Override
+  public ColumnBuilder writeRLEPattern(Column column, int index) {
+    if (!(column instanceof RLEColumn)) {
+      throw new IllegalArgumentException("function writeRLEPattern only support RLEColumns.");
+    }
+    RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
+    int count = rlePattern.getPositionCount();
+    if (rlePattern.isRLEMode()) {
+      long curValue = rlePattern.getLong(0);
+      for (int i = 0; i < count; i++) {
+        writeLong(curValue);
+      }
+    } else {
+      for (int i = 0; i < count; i++) {
+        if (rlePattern.isNull(i)) {
+          appendNull();
+        } else {
+          writeLong(rlePattern.getLong(i));
+        }
+      }
+    }
+    return this;
   }
 
   @Override

@@ -22,6 +22,9 @@ package org.apache.iotdb.tsfile.read.common.block.column;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TsBlockSerde {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TsBlockSerde.class);
 
   /**
    * Deserialize a tsblock.
@@ -100,6 +104,7 @@ public class TsBlockSerde {
 
     // Value column data types.
     for (int i = 0; i < tsBlock.getValueColumnCount(); i++) {
+      // LOGGER.info("[tyx] column " + i + " .type = " + tsBlock.getColumn(i).getDataType());
       tsBlock.getColumn(i).getDataType().serializeTo(dataOutputStream);
     }
 
@@ -109,6 +114,7 @@ public class TsBlockSerde {
     // Column encodings.
     tsBlock.getTimeColumn().getEncoding().serializeTo(dataOutputStream);
     for (int i = 0; i < tsBlock.getValueColumnCount(); i++) {
+      // LOGGER.info("[tyx] column " + i + " .encoding = " + tsBlock.getColumn(i).getEncoding());
       tsBlock.getColumn(i).getEncoding().serializeTo(dataOutputStream);
     }
 
