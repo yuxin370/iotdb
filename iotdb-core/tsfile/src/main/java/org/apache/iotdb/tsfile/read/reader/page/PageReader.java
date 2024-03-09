@@ -249,17 +249,6 @@ public class PageReader implements IPageReader {
 
       /** write retained value to rleColumn */
       if (hasValueRetained) {
-        // for (int j = 0; j < valueRetained.length; j++) {
-        //   LOGGER.info(
-        //       "[tyx] value["
-        //           + j
-        //           + "] = "
-        //           + anRLEPattern.getObject(j)
-        //           + " valueRetained [ "
-        //           + j
-        //           + " ] = "
-        //           + valueRetained[j]);
-        // }
         valueBuilder.writeRLEPattern(anRLEPattern, valueRetained);
       }
 

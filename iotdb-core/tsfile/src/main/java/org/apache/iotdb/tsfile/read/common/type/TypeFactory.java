@@ -41,6 +41,8 @@ public class TypeFactory {
         return BooleanType.getInstance();
       case TEXT:
         return BinaryType.getInstance();
+      case RLEPATTERN:
+        return RlePatternType.getInstance();
       default:
         throw new UnsupportedOperationException(
             String.format("Invalid TSDataType for TypeFactory: %s", tsDataType));

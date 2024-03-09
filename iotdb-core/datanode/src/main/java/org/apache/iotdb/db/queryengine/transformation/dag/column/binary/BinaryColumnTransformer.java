@@ -24,8 +24,11 @@ import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
-public abstract class BinaryColumnTransformer extends ColumnTransformer {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+public abstract class BinaryColumnTransformer extends ColumnTransformer {
+  private static final Logger LOGGER = LoggerFactory.getLogger(BinaryColumnTransformer.class);
   protected final ColumnTransformer leftTransformer;
 
   protected final ColumnTransformer rightTransformer;

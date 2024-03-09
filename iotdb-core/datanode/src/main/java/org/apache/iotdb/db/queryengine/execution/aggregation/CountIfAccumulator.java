@@ -73,6 +73,7 @@ public class CountIfAccumulator implements Accumulator {
           if (lastPointIsSatisfy && keepEvaluator.apply(keep)) {
             countValue++;
           }
+
           keep = 0;
           lastPointIsSatisfy = false;
         }

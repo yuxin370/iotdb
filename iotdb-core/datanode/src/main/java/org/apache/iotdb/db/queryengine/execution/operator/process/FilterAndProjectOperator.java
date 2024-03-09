@@ -40,12 +40,14 @@ import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.utils.Pair;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class FilterAndProjectOperator implements ProcessOperator {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(FilterAndProjectOperator.class);
   private final Operator inputOperator;
 
   private final List<LeafColumnTransformer> filterLeafColumnTransformerList;
@@ -98,6 +100,7 @@ public class FilterAndProjectOperator implements ProcessOperator {
 
   @Override
   public TsBlock next() throws Exception {
+    LOGGER.info("[tyx] inputOperator.type = " + inputOperator.toString());
     TsBlock input = inputOperator.nextWithTimer();
     if (input == null) {
       return null;

@@ -24,6 +24,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -32,7 +34,7 @@ import static java.lang.Math.max;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.calculateBlockResetSize;
 
 public class DoubleColumnBuilder implements ColumnBuilder {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(DoubleColumnBuilder.class);
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(DoubleColumnBuilder.class).instanceSize();
   public static final DoubleColumn NULL_VALUE_BLOCK =

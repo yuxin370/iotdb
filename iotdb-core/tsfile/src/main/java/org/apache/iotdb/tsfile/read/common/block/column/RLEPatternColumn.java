@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.checkValidRegion;
 
@@ -61,6 +62,7 @@ public class RLEPatternColumn implements Column {
 
     this.positionCount = positionCount;
     this.type = type == 0 ? RunLengthMode.RLE : RunLengthMode.BIT_PACKED;
+    checkRLEValid();
   }
 
   public RLEPatternColumn(Column value, int positionCount, RunLengthMode type) {
@@ -78,6 +80,16 @@ public class RLEPatternColumn implements Column {
 
     this.positionCount = positionCount;
     this.type = type;
+    checkRLEValid();
+  }
+
+  private void checkRLEValid() {
+    if (this.type == RunLengthMode.RLE && value.getPositionCount() != 1) {
+      throw new IllegalArgumentException(
+          format(
+              "Expected value to contain a single position but has %s positions",
+              value.getPositionCount()));
+    }
   }
 
   public Column getValue() {
@@ -286,6 +298,15 @@ public class RLEPatternColumn implements Column {
 
   @Override
   public boolean isNull(int position) {
+    if (position >= positionCount) {
+      throw new IllegalArgumentException(
+          "position "
+              + position
+              + " is not less than positionCount "
+              + this.getPositionCount()
+              + " and value.length = "
+              + value.getPositionCount());
+    }
     return value.isNull(position);
   }
 
@@ -318,7 +339,7 @@ public class RLEPatternColumn implements Column {
 
   @Override
   public Column subColumn(int fromIndex) {
-    if (fromIndex > positionCount) {
+    if (fromIndex >= positionCount) {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
     if (type == RunLengthMode.RLE) {
@@ -330,7 +351,7 @@ public class RLEPatternColumn implements Column {
   }
 
   public Column subColumnHead(int toIndex) {
-    if (toIndex > positionCount) {
+    if (toIndex >= positionCount) {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
     return new RLEPatternColumn(value, toIndex, type);
@@ -350,7 +371,6 @@ public class RLEPatternColumn implements Column {
     if (type == RunLengthMode.RLE || newCount == positionCount) {
       return new RLEPatternColumn(value, newCount, type);
     } else {
-      LOGGER.info("in RLEPattern subColumn(valueRetained), retained value count =" + newCount);
       return new RLEPatternColumn(value.subColumn(valueRetained), newCount, type);
     }
   }

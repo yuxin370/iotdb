@@ -73,6 +73,9 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 import org.apache.iotdb.tsfile.read.common.type.TypeFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +87,7 @@ import static org.apache.iotdb.db.queryengine.plan.expression.ExpressionType.BET
 public class ColumnTransformerVisitor
     extends ExpressionVisitor<
         ColumnTransformer, ColumnTransformerVisitor.ColumnTransformerVisitorContext> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ColumnTransformerVisitor.class);
 
   private static final String UNSUPPORTED_EXPRESSION_TYPE = "Unsupported expression type: ";
 
