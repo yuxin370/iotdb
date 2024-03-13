@@ -209,15 +209,22 @@ public class PageReader implements IPageReader {
       /** read coressponding timestamps and check if the timestamp is deleted. */
       long[] timestamps = new long[patternCount];
       boolean[] isDeletedArray = new boolean[patternCount];
-      for (int i = 0; i < patternCount && timeDecoder.hasNext(timeBuffer); i++) {
+      int i = 0;
+      for (i = 0; i < patternCount && timeDecoder.hasNext(timeBuffer); i++) {
         timestamps[i] = timeDecoder.readLong(timeBuffer);
         isDeletedArray[i] = isDeleted(timestamps[i]);
+      }
+
+      if (i < patternCount) {
+        throw new RuntimeException("valueColumn and timeColumn have different length.");
       }
 
       /** construct value satisfy array with filter */
       boolean[] valueSatisfy = new boolean[patternCount];
       if (allSatisfy) {
-        Arrays.fill(valueSatisfy, true);
+        for (i = 0; i < patternCount; i++) {
+          valueSatisfy[i] = !isDeletedArray[i];
+        }
       } else {
         valueSatisfy = recordFilter.satisfyRLEPattern(timestamps, isDeletedArray, anRLEPattern);
       }
@@ -227,7 +234,7 @@ public class PageReader implements IPageReader {
       Arrays.fill(valueRetained, false);
       boolean hasValueRetained = false;
       boolean end = false;
-      for (int i = 0; i < patternCount; i++) {
+      for (i = 0; i < patternCount; i++) {
         if (!valueSatisfy[i]) {
           continue;
         }

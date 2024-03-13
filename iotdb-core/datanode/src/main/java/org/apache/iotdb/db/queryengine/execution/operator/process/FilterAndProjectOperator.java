@@ -100,7 +100,7 @@ public class FilterAndProjectOperator implements ProcessOperator {
 
   @Override
   public TsBlock next() throws Exception {
-    LOGGER.info("[tyx] inputOperator.type = " + inputOperator.toString());
+
     TsBlock input = inputOperator.nextWithTimer();
     if (input == null) {
       return null;

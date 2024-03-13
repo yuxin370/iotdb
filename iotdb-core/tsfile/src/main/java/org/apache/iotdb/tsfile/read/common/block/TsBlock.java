@@ -29,6 +29,8 @@ import org.apache.iotdb.tsfile.read.reader.IPointReader;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -43,6 +45,7 @@ import static java.util.Objects.requireNonNull;
  * series or scalar value (such as deviceName).
  */
 public class TsBlock {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TsBlock.class);
 
   public static final int INSTANCE_SIZE = ClassLayout.parseClass(TsBlock.class).instanceSize();
 

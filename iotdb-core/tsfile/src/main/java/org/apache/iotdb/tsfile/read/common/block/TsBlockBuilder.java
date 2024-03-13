@@ -36,6 +36,9 @@ import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.utils.Binary;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 import static java.lang.String.format;
@@ -43,6 +46,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.iotdb.tsfile.utils.Preconditions.checkArgument;
 
 public class TsBlockBuilder {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TsBlockBuilder.class);
 
   // We choose default initial size to be 8 for TsBlockBuilder and ColumnBuilder
   // so the underlying data is larger than the object overhead, and the size is power of 2.
@@ -325,7 +329,7 @@ public class TsBlockBuilder {
           throw new IllegalStateException(
               format(
                   "Declared positions (%s) does not match column %s's number of entries (%s)",
-                  declaredPositions, i, columns[i].getPositionCount()));
+                  declaredPositions, i, ((RLEColumn) columns[i]).getValueCount()));
         }
       } else if (columns[i].getPositionCount() != declaredPositions) {
         throw new IllegalStateException(

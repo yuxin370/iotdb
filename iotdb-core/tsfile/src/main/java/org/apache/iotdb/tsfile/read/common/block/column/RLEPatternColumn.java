@@ -339,7 +339,7 @@ public class RLEPatternColumn implements Column {
 
   @Override
   public Column subColumn(int fromIndex) {
-    if (fromIndex >= positionCount) {
+    if (fromIndex > positionCount) {
       throw new IllegalArgumentException("fromIndex is not valid");
     }
     if (type == RunLengthMode.RLE) {
@@ -351,8 +351,8 @@ public class RLEPatternColumn implements Column {
   }
 
   public Column subColumnHead(int toIndex) {
-    if (toIndex >= positionCount) {
-      throw new IllegalArgumentException("fromIndex is not valid");
+    if (toIndex > positionCount) {
+      throw new IllegalArgumentException("toIndex is not valid");
     }
     return new RLEPatternColumn(value, toIndex, type);
   }

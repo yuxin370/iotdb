@@ -29,6 +29,9 @@ import org.apache.iotdb.db.queryengine.execution.operator.window.WindowParameter
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.utils.BitMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 import static org.apache.iotdb.db.queryengine.execution.operator.AggregationUtil.isAllAggregatorsHasFinalResult;
@@ -45,7 +48,7 @@ import static org.apache.iotdb.db.queryengine.execution.operator.window.WindowMa
  * <p>Return aggregation result in many time intervals once.
  */
 public class RawDataAggregationOperator extends SingleInputAggregationOperator {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(RawDataAggregationOperator.class);
   private final IWindowManager windowManager;
 
   // needSkip is the signal to determine whether to skip the points out of current window to get

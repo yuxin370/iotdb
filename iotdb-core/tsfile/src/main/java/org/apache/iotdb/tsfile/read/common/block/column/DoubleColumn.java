@@ -23,6 +23,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -32,7 +34,7 @@ import static io.airlift.slice.SizeOf.sizeOfDoubleArray;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.checkValidRegion;
 
 public class DoubleColumn implements Column {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(DoubleColumn.class);
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(DoubleColumn.class).instanceSize();
   public static final int SIZE_IN_BYTES_PER_POSITION = Double.BYTES + Byte.BYTES;

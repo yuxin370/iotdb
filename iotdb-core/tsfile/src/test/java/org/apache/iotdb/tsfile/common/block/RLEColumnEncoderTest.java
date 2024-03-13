@@ -41,6 +41,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -132,6 +133,88 @@ public class RLEColumnEncoderTest {
     return binarys;
   }
 
+  private int[] generateConstantArrayInt(int positionCount) {
+    int[] ints = new int[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      ints[i] = (i);
+    }
+    return ints;
+  }
+
+  @Test
+  public void testGetRegion() {
+    int positionCount = 10;
+    RLEPatternColumn[] columns = new RLEPatternColumn[positionCount];
+    boolean[] nullIndicators = new boolean[positionCount];
+    Arrays.fill(nullIndicators, false);
+    for (int i = 0; i < positionCount; i++) {
+      if (i % 3 != 0) {
+        columns[i] =
+            new RLEPatternColumn(
+                new IntColumn(1, Optional.empty(), new int[] {1}), positionCount, 0);
+      } else {
+        columns[i] =
+            new RLEPatternColumn(
+                new IntColumn(
+                    positionCount, Optional.empty(), generateConstantArrayInt(positionCount)),
+                positionCount,
+                1);
+      }
+    }
+    RLEColumn input = new RLEColumn(positionCount, Optional.of(nullIndicators), columns);
+    RLEColumn getregion1 = (RLEColumn) input.getRegion(0, 20);
+    for (int i = 0; i < 20; i++) {
+      Assert.assertEquals((int) input.getObject(i), (int) getregion1.getObject(i));
+    }
+    RLEColumn getregion2 = (RLEColumn) input.getRegion(30, 70);
+    for (int i = 0, j = 30; i < 70; i++, j++) {
+      Assert.assertEquals((int) input.getObject(j), (int) getregion2.getObject(i));
+    }
+    RLEColumn getregion3 = (RLEColumn) input.getRegion(13, 34);
+    for (int i = 0, j = 13; i < 34; i++, j++) {
+      Assert.assertEquals((int) input.getObject(j), (int) getregion3.getObject(i));
+    }
+  }
+
+  @Test
+  public void testSubColumn() {
+    int positionCount = 10;
+    RLEPatternColumn[] columns = new RLEPatternColumn[positionCount];
+    boolean[] nullIndicators = new boolean[positionCount];
+    Arrays.fill(nullIndicators, false);
+    for (int i = 0; i < positionCount; i++) {
+      if (i % 3 != 0) {
+        columns[i] =
+            new RLEPatternColumn(
+                new IntColumn(1, Optional.empty(), new int[] {1}), positionCount, 0);
+      } else {
+        columns[i] =
+            new RLEPatternColumn(
+                new IntColumn(
+                    positionCount, Optional.empty(), generateConstantArrayInt(positionCount)),
+                positionCount,
+                1);
+      }
+    }
+    RLEColumn input = new RLEColumn(positionCount, Optional.of(nullIndicators), columns);
+    RLEColumn subColumn1 = (RLEColumn) input.subColumn(0);
+    for (int i = 0; i < 100; i++) {
+      Assert.assertEquals((int) input.getObject(i), (int) subColumn1.getObject(i));
+    }
+    RLEColumn subColumn2 = (RLEColumn) input.subColumn(30);
+    for (int i = 0, j = 30; j < 100; i++, j++) {
+      Assert.assertEquals((int) input.getObject(j), (int) subColumn2.getObject(i));
+    }
+    RLEColumn subColumn3 = (RLEColumn) input.subColumn(33);
+    for (int i = 0, j = 13; j < 100; i++, j++) {
+      Assert.assertEquals((int) input.getObject(j), (int) subColumn3.getObject(i));
+    }
+    RLEColumn subColumn4 = (RLEColumn) input.subColumn(100);
+    for (int i = 0, j = 100; j < 100; i++, j++) {
+      Assert.assertEquals((int) input.getObject(j), (int) subColumn4.getObject(i));
+    }
+  }
+
   @Test
   public void testBooleanColumn() {
     int positionCount = 10;
@@ -149,7 +232,10 @@ public class RLEColumnEncoderTest {
       } else {
         columns[i] =
             new RLEPatternColumn(
-                new BooleanColumn(1, Optional.empty(), generateArrayBoolean(3)), positionCount, 0);
+                new BooleanColumn(
+                    positionCount, Optional.empty(), generateArrayBoolean(positionCount)),
+                positionCount,
+                1);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);
@@ -172,7 +258,9 @@ public class RLEColumnEncoderTest {
       } else {
         columns[i] =
             new RLEPatternColumn(
-                new IntColumn(1, Optional.empty(), generateArrayInt(3)), positionCount, 0);
+                new IntColumn(positionCount, Optional.empty(), generateArrayInt(positionCount)),
+                positionCount,
+                1);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);
@@ -195,7 +283,9 @@ public class RLEColumnEncoderTest {
       } else {
         columns[i] =
             new RLEPatternColumn(
-                new LongColumn(1, Optional.empty(), generateArrayLong(3)), positionCount, 0);
+                new LongColumn(positionCount, Optional.empty(), generateArrayLong(positionCount)),
+                positionCount,
+                1);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);
@@ -218,7 +308,9 @@ public class RLEColumnEncoderTest {
       } else {
         columns[i] =
             new RLEPatternColumn(
-                new FloatColumn(1, Optional.empty(), generateArrayFloat(3)), positionCount, 0);
+                new FloatColumn(positionCount, Optional.empty(), generateArrayFloat(positionCount)),
+                positionCount,
+                1);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);
@@ -241,7 +333,10 @@ public class RLEColumnEncoderTest {
       } else {
         columns[i] =
             new RLEPatternColumn(
-                new DoubleColumn(1, Optional.empty(), generateArrayDouble(3)), positionCount, 0);
+                new DoubleColumn(
+                    positionCount, Optional.empty(), generateArrayDouble(positionCount)),
+                positionCount,
+                1);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);
@@ -269,7 +364,10 @@ public class RLEColumnEncoderTest {
       } else {
         columns[i] =
             new RLEPatternColumn(
-                new BinaryColumn(1, Optional.empty(), generateArrayBinary(3)), positionCount, 0);
+                new BinaryColumn(
+                    positionCount, Optional.empty(), generateArrayBinary(positionCount)),
+                positionCount,
+                0);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);

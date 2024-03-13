@@ -106,6 +106,11 @@ public interface Column {
     throw new UnsupportedOperationException(getClass().getName());
   }
 
+  /** return if the RLEPattern at position is NULL */
+  default boolean isNullRLE(int position) {
+    throw new UnsupportedOperationException(getClass().getName());
+  }
+
   /**
    * Is it possible the column may have a null value? If false, the column cannot contain a null,
    * but if true, the column may or may not have a null.
