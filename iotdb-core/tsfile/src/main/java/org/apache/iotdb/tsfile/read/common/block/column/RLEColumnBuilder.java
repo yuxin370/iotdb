@@ -38,7 +38,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
   private static final int INSTANCE_SIZE =
       ClassLayout.parseClass(IntColumnBuilder.class).instanceSize();
   public static final RLEColumn NULL_VALUE_BLOCK =
-      new RLEColumn(0, 1, new boolean[] {true}, new RLEPatternColumn[1]);
+      new RLEColumn(0, 1, new boolean[] {true}, null, new RLEPatternColumn[1]);
 
   private final ColumnBuilderStatus columnBuilderStatus;
   private boolean initialized;
@@ -145,7 +145,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
     if (!hasNonNullValue) {
       return new RunLengthEncodedColumn(NULL_VALUE_BLOCK, positionCount);
     }
-    return new RLEColumn(0, positionCount, hasNullValue ? valueIsNull : null, values);
+    return new RLEColumn(0, positionCount, hasNullValue ? valueIsNull : null, null, values);
   }
 
   @Override

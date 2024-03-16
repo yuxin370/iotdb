@@ -96,7 +96,7 @@ public class RLEPatternColumn implements Column {
     return value;
   }
 
-  public RunLengthMode getMode() {
+  private RunLengthMode getMode() {
     return type;
   }
 

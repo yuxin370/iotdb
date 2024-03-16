@@ -50,7 +50,7 @@ public class RLEColumnEncoder implements ColumnEncoder {
         }
       }
     }
-    return new RLEColumn(0, positionCount, nullIndicators, values);
+    return new RLEColumn(0, positionCount, nullIndicators, null, values);
   }
 
   @Override

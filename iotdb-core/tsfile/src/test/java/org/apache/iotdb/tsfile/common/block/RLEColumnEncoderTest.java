@@ -206,13 +206,17 @@ public class RLEColumnEncoderTest {
       Assert.assertEquals((int) input.getObject(j), (int) subColumn2.getObject(i));
     }
     RLEColumn subColumn3 = (RLEColumn) input.subColumn(33);
-    for (int i = 0, j = 13; j < 100; i++, j++) {
+    int i = 0, j = 33;
+    for (; i < 33 && j < 100; i++, j++) {
+      Assert.assertEquals((int) input.getObject(j), (int) subColumn3.getObject(i));
+    }
+    for (; j < 100; i++, j++) {
       Assert.assertEquals((int) input.getObject(j), (int) subColumn3.getObject(i));
     }
     RLEColumn subColumn4 = (RLEColumn) input.subColumn(100);
-    for (int i = 0, j = 100; j < 100; i++, j++) {
-      Assert.assertEquals((int) input.getObject(j), (int) subColumn4.getObject(i));
-    }
+    //   for (int i = 0, j = 100; j < 100; i++, j++) {
+    //     Assert.assertEquals((int) input.getObject(j), (int) subColumn4.getObject(i));
+    //   }
   }
 
   @Test
@@ -367,7 +371,7 @@ public class RLEColumnEncoderTest {
                 new BinaryColumn(
                     positionCount, Optional.empty(), generateArrayBinary(positionCount)),
                 positionCount,
-                0);
+                1);
       }
     }
     testInternalRLE(positionCount, nullIndicators, columns);

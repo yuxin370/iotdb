@@ -193,6 +193,18 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
       resultTsBlockBuilder.buildValueColumnBuilders(
           Collections.singletonList(TSDataType.RLEPATTERN));
     }
+    /**
+     * 1、是否遇到RLE
+     * 2、是否 builder 中有数据
+     * 3、builder是否是RLEbuilder
+     * 
+     * 1）有数据 且 RLEBuilder + RLE ->  正常写
+     * 2) 有数据 非 RLEBuilder + RLE  -> 正常写
+     * 3) 无数据 非 RLEBuilder + RLE  -> 创建 替换 RLEBuilder
+     * 4）有数据 且 RLEBuilder + single value  -> 整个column塞进去 = 正常写
+     * 5) 有数据 非 RLEBuilder + single value  -> 正常写
+     * 6) 无数据 非 RLEBuilder + single value  -> 正常写
+     */
     TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
     TimeColumn timeColumn = tsBlock.getTimeColumn();
     RLEColumnBuilder columnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(0);

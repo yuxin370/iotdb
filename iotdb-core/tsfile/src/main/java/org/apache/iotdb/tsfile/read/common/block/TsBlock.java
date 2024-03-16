@@ -554,7 +554,7 @@ public class TsBlock {
               sourceTsBlock.getValueColumns()[i].getBinary(sourceIndex);
           break;
         case RLEPATTERN:
-          valueColumns[i].isNull()[updateIdx] = false;
+          // valueColumns[i].isNull()[updateIdx] = false;
           ((RLEColumn) valueColumns[i])
               .updateValue(
                   updateIdx,
