@@ -150,42 +150,6 @@ public class DoubleColumn implements Column {
   }
 
   @Override
-  public Column subColumn(boolean[] valueRetained) {
-    if (valueRetained.length != positionCount) {
-      throw new IllegalArgumentException("valueRetained is not valid");
-    }
-    int newCount = 0;
-    for (int i = 0; i < positionCount; i++) {
-      if (valueRetained[i] == true) {
-        newCount++;
-      }
-    }
-    if (newCount == positionCount) {
-      return new DoubleColumn(0, newCount, valueIsNull, values);
-    }
-    double[] newValue = new double[newCount];
-    boolean[] newValueIsNull = new boolean[newCount];
-    if (valueIsNull == null) {
-      newValueIsNull = null;
-      for (int i = 0, j = 0; i < positionCount; i++) {
-        if (valueRetained[i] == true) {
-          newValue[j] = values[i];
-          j++;
-        }
-      }
-    } else {
-      for (int i = 0, j = 0; i < positionCount; i++) {
-        if (valueRetained[i] == true) {
-          newValue[j] = values[i];
-          newValueIsNull[j] = valueIsNull[i];
-          j++;
-        }
-      }
-    }
-    return new DoubleColumn(0, newCount, newValueIsNull, newValue);
-  }
-
-  @Override
   public void reverse() {
     for (int i = arrayOffset, j = arrayOffset + positionCount - 1; i < j; i++, j--) {
       double valueTmp = values[i];

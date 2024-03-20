@@ -31,7 +31,7 @@ import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.LongColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.utils.Binary;
 import org.apache.iotdb.tsfile.utils.BytesUtils;
@@ -69,35 +69,39 @@ public class RLEAccumulatorTest {
     finalValueSum = 0;
     List<TSDataType> dataTypes = new ArrayList<>();
     dataTypes.add(TSDataType.DOUBLE);
+
+    int patternCount = 10;
+    int patternLength = 100;
+    TimeColumnBuilder timeColumnBuilderTmp =
+        new TimeColumnBuilder(null, patternCount * patternLength);
+    ColumnBuilder[] valueColumnBuilderTmp =
+        new ColumnBuilder[] {
+          new RLEColumnBuilder(null, patternCount * patternLength, dataTypes.get(0))
+        };
     TsBlockBuilder tsBlockBuilder =
-        new TsBlockBuilder(Collections.singletonList(TSDataType.RLEPATTERN));
+        new TsBlockBuilder(dataTypes, timeColumnBuilderTmp, valueColumnBuilderTmp);
+
     TimeColumnBuilder timeColumnBuilder = tsBlockBuilder.getTimeColumnBuilder();
     ColumnBuilder[] columnBuilders = tsBlockBuilder.getValueColumnBuilders();
 
     int index = 0;
-    for (int j = 0; j < 100; j++) {
-      int positionCount = 10;
-      RLEPatternColumn column;
+    for (int j = 0; j < patternCount; j++) {
+      Column column;
       if (j % 3 != 0) {
-        column =
-            new RLEPatternColumn(
-                new DoubleColumn(1, Optional.empty(), new double[] {index}), positionCount, 0);
-        finalValueSum += index * positionCount;
+        column = new DoubleColumn(1, Optional.empty(), new double[] {index});
+        finalValueSum += index * patternLength;
       } else {
         column =
-            new RLEPatternColumn(
-                new DoubleColumn(
-                    positionCount, Optional.empty(), generateArrayDouble(positionCount, index)),
-                positionCount,
-                1);
+            new DoubleColumn(
+                patternLength, Optional.empty(), generateArrayDouble(patternLength, index));
       }
 
-      for (int i = 0; i < positionCount; i++, index++) {
+      for (int i = 0; i < patternLength; i++, index++) {
         timeColumnBuilder.writeLong(index);
       }
 
-      (columnBuilders[0]).writeObject(column);
-      tsBlockBuilder.declarePositions(positionCount);
+      (columnBuilders[0]).writeColumn(column, patternLength);
+      tsBlockBuilder.declarePositions(patternLength);
     }
     rawData = tsBlockBuilder.build();
 

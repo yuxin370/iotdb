@@ -85,35 +85,7 @@ public class BinaryColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    if (column instanceof RLEColumn) {
-      return writeBinary((Binary) ((RLEColumn) column).getValue(index));
-    } else {
-      return writeBinary(column.getBinary(index));
-    }
-  }
-
-  @Override
-  public ColumnBuilder writeRLEPattern(Column column, int index) {
-    if (!(column instanceof RLEColumn)) {
-      throw new IllegalArgumentException("function writeRLEPattern only support RLEColumns.");
-    }
-    RLEPatternColumn rlePattern = ((RLEColumn) column).getRLEPattern(index);
-    int count = rlePattern.getPositionCount();
-    if (rlePattern.isRLEMode()) {
-      Binary curValue = rlePattern.getBinary(0);
-      for (int i = 0; i < count; i++) {
-        writeBinary(curValue);
-      }
-    } else {
-      for (int i = 0; i < count; i++) {
-        if (rlePattern.isNull(i)) {
-          appendNull();
-        } else {
-          writeBinary(rlePattern.getBinary(i));
-        }
-      }
-    }
-    return this;
+    return writeBinary(column.getBinary(index));
   }
 
   @Override

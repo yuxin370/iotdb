@@ -22,7 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.basic;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
 
 import java.io.Serializable;
 
@@ -54,20 +54,20 @@ public abstract class TimeFilter extends Filter {
   }
 
   @Override
-  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPAttern) {
-    boolean[] satisfyInfo = new boolean[RLEPAttern.getPositionCount()];
-    for (int i = 0; i < RLEPAttern.getPositionCount(); i++) {
+  public boolean[] satisfyColumn(long[] timestamps, Column values, int logicPositionCount) {
+    boolean[] satisfyInfo = new boolean[logicPositionCount];
+    for (int i = 0; i < logicPositionCount; i++) {
       satisfyInfo[i] = timeSatisfy(timestamps[i]);
     }
     return satisfyInfo;
   }
 
   @Override
-  public boolean[] satisfyRLEPattern(
-      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPAttern) {
-    boolean[] satisfyInfo = new boolean[RLEPAttern.getPositionCount()];
-    for (int i = 0; i < RLEPAttern.getPositionCount(); i++) {
-      if (isDeleted[i]) {
+  public boolean[] satisfyColumn(
+      long[] timestamps, boolean[] bitMap, Column values, int logicPositionCount) {
+    boolean[] satisfyInfo = new boolean[logicPositionCount];
+    for (int i = 0; i < logicPositionCount; i++) {
+      if (bitMap[i]) {
         satisfyInfo[i] = false;
       } else {
         satisfyInfo[i] = timeSatisfy(timestamps[i]);

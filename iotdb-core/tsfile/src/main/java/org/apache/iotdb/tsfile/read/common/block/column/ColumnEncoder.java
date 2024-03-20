@@ -44,11 +44,7 @@ public interface ColumnEncoder {
     if (!mayHaveNull) {
       return;
     }
-    if (column instanceof RLEColumn) {
-      serializeBooleanArray(output, column, Column::isNullRLE);
-    } else {
-      serializeBooleanArray(output, column, Column::isNull);
-    }
+    serializeBooleanArray(output, column, Column::isNull);
   }
 
   static boolean[] deserializeNullIndicators(ByteBuffer input, int positionCount) {

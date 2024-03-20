@@ -26,7 +26,7 @@ import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumn;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 import org.apache.iotdb.tsfile.read.common.type.TypeFactory;
@@ -35,7 +35,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 public class RLEArithmeticBinaryColumnTransformerTest {
@@ -70,31 +72,39 @@ public class RLEArithmeticBinaryColumnTransformerTest {
     Arrays.fill(modResult, 0);
     Arrays.fill(subResult, 0);
 
+    List<TSDataType> dataTypes = new ArrayList<>();
+    dataTypes.add(TSDataType.DOUBLE);
+    dataTypes.add(TSDataType.DOUBLE);
+
+    int patternCount = 10;
+    int patternLength = 100;
+    TimeColumnBuilder timeColumnBuilderTmp =
+        new TimeColumnBuilder(null, patternCount * patternLength);
+    ColumnBuilder[] valueColumnBuilderTmp =
+        new ColumnBuilder[] {
+          new RLEColumnBuilder(null, patternCount * patternLength, dataTypes.get(0)),
+          new RLEColumnBuilder(null, patternCount * patternLength, dataTypes.get(1))
+        };
     TsBlockBuilder tsBlockBuilder =
-        new TsBlockBuilder(Arrays.asList(TSDataType.RLEPATTERN, TSDataType.RLEPATTERN));
+        new TsBlockBuilder(dataTypes, timeColumnBuilderTmp, valueColumnBuilderTmp);
+
     TimeColumnBuilder timeColumnBuilder = tsBlockBuilder.getTimeColumnBuilder();
     ColumnBuilder leftColumnBuilder = tsBlockBuilder.getColumnBuilder(0);
     ColumnBuilder rightColumnBuilder = tsBlockBuilder.getColumnBuilder(1);
 
     int index = 1;
-    for (int j = 0; j < 100; j++) {
-      int positionCount = 10;
-      RLEPatternColumn column;
+    for (int j = 0; j < patternCount; j++) {
+      Column column;
       if (j % 3 != 0) {
-        column =
-            new RLEPatternColumn(
-                new DoubleColumn(1, Optional.empty(), new double[] {index}), positionCount, 0);
+        column = new DoubleColumn(1, Optional.empty(), new double[] {index});
       } else {
         column =
-            new RLEPatternColumn(
-                new DoubleColumn(
-                    positionCount, Optional.empty(), generateArrayDouble(positionCount, index)),
-                positionCount,
-                1);
+            new DoubleColumn(
+                patternLength, Optional.empty(), generateArrayDouble(patternLength, index));
       }
 
       int curIndex = index;
-      for (int i = 0; i < positionCount; i++, index++) {
+      for (int i = 0; i < patternLength; i++, index++) {
         timeColumnBuilder.writeLong(index);
         if (j % 3 != 0) {
           addResult[index - 1] = curIndex * 2.0;
@@ -105,9 +115,9 @@ public class RLEArithmeticBinaryColumnTransformerTest {
         }
       }
 
-      (leftColumnBuilder).writeObject(column);
-      (rightColumnBuilder).writeObject(column);
-      tsBlockBuilder.declarePositions(positionCount);
+      (leftColumnBuilder).writeColumn(column, patternLength);
+      (rightColumnBuilder).writeColumn(column, patternLength);
+      tsBlockBuilder.declarePositions(patternLength);
     }
     TsBlock tsBlock = tsBlockBuilder.build();
 

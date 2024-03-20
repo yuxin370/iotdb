@@ -206,20 +206,6 @@ public class RunLengthEncodedColumn implements Column {
   }
 
   @Override
-  public Column subColumn(boolean[] valueRetained) {
-    if (valueRetained.length != positionCount) {
-      throw new IllegalArgumentException("valueRetained is not valid");
-    }
-    int newCount = 0;
-    for (int i = 0; i < positionCount; i++) {
-      if (valueRetained[i] == true) {
-        newCount++;
-      }
-    }
-    return new RunLengthEncodedColumn(value.subColumn(valueRetained), newCount);
-  }
-
-  @Override
   public void reverse() {
     // do nothing because the underlying column has only one value
   }

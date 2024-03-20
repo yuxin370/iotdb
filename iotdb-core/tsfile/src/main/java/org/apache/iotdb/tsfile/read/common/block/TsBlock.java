@@ -23,7 +23,6 @@ import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.read.TimeValuePair;
 import org.apache.iotdb.tsfile.read.common.IBatchDataIterator;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.reader.IPointReader;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
@@ -38,6 +37,7 @@ import java.util.NoSuchElementException;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.convertRLEColumnToGenericColumn;
 
 /**
  * Intermediate result for most of ExecOperators. The TsBlock contains data from one or more columns
@@ -121,14 +121,13 @@ public class TsBlock {
     return retainedSizeInBytes;
   }
 
-  /** check if any of the columns is RLEColumn. If is, reclaim it to initial columnType. */
-  public TsBlock reclaim() {
+  /**
+   * check if any of the columns is RLEColumn. If is, convert it to corresponding generic column.
+   */
+  public TsBlock convertAllRLEColumnToGenericColumn() {
     int columnCount = getValueColumnCount();
     for (int i = 0; i < columnCount; i++) {
-      if (!(valueColumns[i] instanceof RLEColumn)) {
-        continue;
-      }
-      valueColumns[i] = (Column) ((RLEColumn) valueColumns[i]).reclaim();
+      valueColumns[i] = convertRLEColumnToGenericColumn(valueColumns[i]);
     }
     return this;
   }
@@ -552,15 +551,6 @@ public class TsBlock {
           valueColumns[i].isNull()[updateIdx] = false;
           valueColumns[i].getBinaries()[updateIdx] =
               sourceTsBlock.getValueColumns()[i].getBinary(sourceIndex);
-          break;
-        case RLEPATTERN:
-          // valueColumns[i].isNull()[updateIdx] = false;
-          ((RLEColumn) valueColumns[i])
-              .updateValue(
-                  updateIdx,
-                  ((RLEColumn) sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex));
-          // ((RLEColumn) valueColumns[i]).getValues()[updateIdx] =
-          //     ((RLEColumn) sourceTsBlock.getValueColumns()[i]).getRLEPattern(sourceIndex);
           break;
         default:
           throw new UnSupportedDataTypeException(

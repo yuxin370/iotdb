@@ -55,8 +55,8 @@ public interface ColumnBuilder {
     throw new UnsupportedOperationException(getClass().getName());
   }
 
-  /** Write a RLEPattern to the current entry; */
-  default ColumnBuilder writeRLEPattern(Column column, int index) {
+  /** Write the values of a Column to the current entry; */
+  default ColumnBuilder writeColumn(Column value, int logicPositionCount) {
     throw new UnsupportedOperationException(getClass().getName());
   }
 

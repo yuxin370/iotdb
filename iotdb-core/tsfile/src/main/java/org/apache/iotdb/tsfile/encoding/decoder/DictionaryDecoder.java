@@ -19,8 +19,13 @@
 
 package org.apache.iotdb.tsfile.encoding.decoder;
 
+import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+import org.apache.iotdb.tsfile.read.common.block.column.BinaryColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.BinaryColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.utils.Binary;
+import org.apache.iotdb.tsfile.utils.Pair;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -30,6 +35,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class DictionaryDecoder extends Decoder {
   private static final Logger logger = LoggerFactory.getLogger(DictionaryDecoder.class);
@@ -65,6 +71,29 @@ public class DictionaryDecoder extends Decoder {
     }
     int code = valueDecoder.readInt(buffer);
     return entryIndex.get(code);
+  }
+
+  @Override
+  public Pair<Column, Integer> readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
+    if (entryIndex == null) {
+      initMap(buffer);
+    }
+    Pair<Column, Integer> codes = valueDecoder.readRLEPattern(buffer, TSDataType.INT32);
+    int positionCount = codes.left.getPositionCount();
+    if (positionCount == 1) {
+      // rle
+      return new Pair<Column, Integer>(
+          new BinaryColumn(
+              1, Optional.empty(), new Binary[] {entryIndex.get(codes.left.getInt(0))}),
+          codes.right);
+    } else {
+      // bit-packed
+      BinaryColumnBuilder builder = new BinaryColumnBuilder(null, positionCount);
+      for (int i = 0; i < positionCount; i++) {
+        builder.writeBinary(entryIndex.get(codes.left.getInt(i)));
+      }
+      return new Pair<Column, Integer>(builder.build(), codes.right);
+    }
   }
 
   private void initMap(ByteBuffer buffer) {

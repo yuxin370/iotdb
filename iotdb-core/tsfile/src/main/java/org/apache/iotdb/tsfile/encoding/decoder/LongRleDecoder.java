@@ -23,9 +23,9 @@ import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.encoding.bitpacking.LongPacker;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.LongColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.apache.iotdb.tsfile.read.common.block.column.LongColumn;
+import org.apache.iotdb.tsfile.utils.Pair;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 
 /** Decoder for long value using rle or bit-packing. */
 public class LongRleDecoder extends RleDecoder {
@@ -98,109 +99,58 @@ public class LongRleDecoder extends RleDecoder {
     return result;
   }
 
-  public RLEPatternColumn readRLEPatternLong(ByteBuffer buffer) {
-    LongColumnBuilder builder = new LongColumnBuilder(null, 0);
-    if (!isLengthAndBitWidthReaded) {
-      // start to read a new rle+bit-packing pattern
-      readLengthAndBitWidth(buffer);
-    }
-
-    if (currentCount == 0) {
-      try {
-        readNext();
-      } catch (IOException e) {
-        logger.error(
-            "tsfile-encoding IntRleDecoder: error occurs when reading all encoding number,"
-                + " length is {}, bit width is {}",
-            length,
-            bitWidth,
-            e);
-      }
-    }
-    // --currentCount;
-    int valueCount = currentCount;
-    switch (mode) {
-      case RLE:
-        builder.writeLong(currentValue);
-        currentCount = 0;
-        break;
-      case BIT_PACKED:
-        while (currentCount != 0) {
-          currentCount--;
-          builder.writeLong(currentBuffer[bitPackingNum - currentCount - 1]);
-        }
-        break;
-      default:
-        throw new TsFileDecodingException(
-            String.format("tsfile-encoding IntRleDecoder: not a valid mode %s", mode));
-    }
-
-    if (!hasNextPackage()) {
-      isLengthAndBitWidthReaded = false;
-    }
-    return new RLEPatternColumn(builder.build(), valueCount, mode == Mode.RLE ? 0 : 1);
-  }
-
-  public RLEPatternColumn readRLEPatternDouble(ByteBuffer buffer) {
-    DoubleColumnBuilder builder = new DoubleColumnBuilder(null, 0);
-    if (!isLengthAndBitWidthReaded) {
-      // start to read a new rle+bit-packing pattern
-      readLengthAndBitWidth(buffer);
-    }
-
-    if (currentCount == 0) {
-      try {
-        readNext();
-      } catch (IOException e) {
-        logger.error(
-            "tsfile-encoding IntRleDecoder: error occurs when reading all encoding number,"
-                + " length is {}, bit width is {}",
-            length,
-            bitWidth,
-            e);
-      }
-    }
-    // --currentCount;
-    int valueCount = currentCount;
-    switch (mode) {
-      case RLE:
-        builder.writeDouble(currentValue);
-        currentCount = 0;
-        break;
-      case BIT_PACKED:
-        while (currentCount != 0) {
-          currentCount--;
-          builder.writeDouble(currentBuffer[bitPackingNum - currentCount - 1]);
-        }
-        break;
-      default:
-        throw new TsFileDecodingException(
-            String.format("tsfile-encoding IntRleDecoder: not a valid mode %s", mode));
-    }
-
-    if (!hasNextPackage()) {
-      isLengthAndBitWidthReaded = false;
-    }
-    return new RLEPatternColumn(builder.build(), valueCount, mode == Mode.RLE ? 0 : 1);
-  }
-
   /**
-   * read an RLEPattern value from InputStream.
+   * read an RLEPattern from InputStream.
    *
    * @param buffer - ByteBuffer
-   * @return value - current valid RLEPattern value
+   * @return Pair<Column, Integer> - Column,logic positionCount
    */
   @Override
-  public RLEPatternColumn readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
-    switch (dataType) {
-      case INT64:
-        return readRLEPatternLong(buffer);
-      case DOUBLE:
-        return readRLEPatternDouble(buffer);
-      default:
-        throw new IllegalArgumentException(
-            "LongRleDecoder only support dataType [INT64,DOUBLE], but get a " + dataType + ".");
+  public Pair<Column, Integer> readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
+    long[] tmp;
+    if (!isLengthAndBitWidthReaded) {
+      // start to read a new rle+bit-packing pattern
+      readLengthAndBitWidth(buffer);
     }
+
+    if (currentCount == 0) {
+      try {
+        readNext();
+      } catch (IOException e) {
+        logger.error(
+            "tsfile-encoding IntRleDecoder: error occurs when reading all encoding number,"
+                + " length is {}, bit width is {}",
+            length,
+            bitWidth,
+            e);
+      }
+    }
+
+    int valueCount = currentCount;
+    switch (mode) {
+      case RLE:
+        tmp = new long[1];
+        tmp[0] = currentValue;
+        currentCount = 0;
+        break;
+      case BIT_PACKED:
+        tmp = new long[currentCount];
+        while (currentCount != 0) {
+          currentCount--;
+          tmp[valueCount - currentCount - 1] = currentBuffer[bitPackingNum - currentCount - 1];
+        }
+        break;
+      default:
+        throw new TsFileDecodingException(
+            String.format("tsfile-encoding IntRleDecoder: not a valid mode %s", mode));
+    }
+
+    if (!hasNextPackage()) {
+      isLengthAndBitWidthReaded = false;
+    }
+
+    return new Pair<Column, Integer>(
+        new LongColumn(tmp.length, Optional.empty(), tmp), new Integer(valueCount));
   }
 
   @Override

@@ -124,30 +124,6 @@ public class TimeColumn implements Column {
   }
 
   @Override
-  public Column subColumn(boolean[] valueRetained) {
-    if (valueRetained.length != positionCount) {
-      throw new IllegalArgumentException("valueRetained is not valid");
-    }
-    int newCount = 0;
-    for (int i = 0; i < positionCount; i++) {
-      if (valueRetained[i] == true) {
-        newCount++;
-      }
-    }
-    if (newCount == positionCount) {
-      return new TimeColumn(0, newCount, values);
-    }
-    long[] newValue = new long[newCount];
-    for (int i = 0, j = 0; i < positionCount; i++) {
-      if (valueRetained[i] == true) {
-        newValue[j] = values[i];
-        j++;
-      }
-    }
-    return new TimeColumn(0, newCount, newValue);
-  }
-
-  @Override
   public void reverse() {
     for (int i = arrayOffset, j = arrayOffset + positionCount - 1; i < j; i++, j--) {
       long time = values[i];

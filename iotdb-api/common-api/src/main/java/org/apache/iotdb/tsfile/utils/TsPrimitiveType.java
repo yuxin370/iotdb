@@ -47,8 +47,6 @@ public abstract class TsPrimitiveType implements Serializable {
         return new TsPrimitiveType.TsBinary();
       case VECTOR:
         return new TsPrimitiveType.TsVector();
-      case RLEPATTERN:
-        return new TsPrimitiveType.TsRLEPattern();
       default:
         throw new UnSupportedDataTypeException("Unsupported data type:" + dataType);
     }
@@ -76,8 +74,6 @@ public abstract class TsPrimitiveType implements Serializable {
         return new TsPrimitiveType.TsBinary((Binary) v);
       case VECTOR:
         return new TsPrimitiveType.TsVector((TsPrimitiveType[]) v);
-      case RLEPATTERN:
-        return new TsPrimitiveType.TsRLEPattern((TsPrimitiveType[]) v);
       default:
         throw new UnSupportedDataTypeException("Unsupported data type:" + dataType);
     }
@@ -105,11 +101,6 @@ public abstract class TsPrimitiveType implements Serializable {
 
   public Binary getBinary() {
     throw new UnsupportedOperationException("getBinary() is not supported for current sub-class");
-  }
-
-  public TsPrimitiveType[] getRLEPattern() {
-    throw new UnsupportedOperationException(
-        "getRLEPattern() is not supported for current sub-class");
   }
 
   public TsPrimitiveType[] getVector() {
@@ -142,31 +133,6 @@ public abstract class TsPrimitiveType implements Serializable {
 
   public void setVector(TsPrimitiveType[] val) {
     throw new UnsupportedOperationException("setVector() is not supported for current sub-class");
-  }
-
-  // functions for RLEPattern
-  public void setRLEPattern(TsPrimitiveType[] val) {
-    throw new UnsupportedOperationException(
-        "setRLEPattern() is not supported for current sub-class");
-  }
-
-  public void setRLEMode(int mode) {
-    throw new UnsupportedOperationException("setRLEMode() is not supported for current sub-class");
-  }
-
-  public void setRLEPatternCount(int count) {
-    throw new UnsupportedOperationException(
-        "setRLEPatternCount() is not supported for current sub-class");
-  }
-
-  public int getRLEMode() {
-    throw new UnsupportedOperationException(
-        "getRLEPatternCount() is not supported for current sub-class");
-  }
-
-  public int getRLEPatternCount() {
-    throw new UnsupportedOperationException(
-        "getRLEPatternCount() is not supported for current sub-class");
   }
 
   public abstract void setObject(Object val);
@@ -714,141 +680,6 @@ public abstract class TsPrimitiveType implements Serializable {
       if (anObject instanceof TsVector) {
         TsVector anotherTs = (TsVector) anObject;
         if (anotherTs.values.length != this.values.length) {
-          return false;
-        }
-        for (int i = 0; i < this.values.length; i++) {
-          if (!values[i].equals(anotherTs.values[i])) {
-            return false;
-          }
-        }
-        return true;
-      }
-      return false;
-    }
-  }
-
-  public static class TsRLEPattern extends TsPrimitiveType {
-
-    private TsPrimitiveType[] values; // equals to the column
-    private int Mode; // 0 for RLE,1 for bit-packed
-    private int RLEPatternCount;
-
-    public TsRLEPattern() {}
-
-    public TsRLEPattern(TsPrimitiveType[] values, int Mode, int RLEPatternCount) {
-      this.values = values;
-      this.Mode = Mode;
-      this.RLEPatternCount = RLEPatternCount;
-    }
-
-    public TsRLEPattern(TsPrimitiveType[] values) {
-      this.values = values;
-      this.Mode = 1;
-      this.RLEPatternCount = values.length;
-    }
-
-    @Override
-    public TsPrimitiveType[] getRLEPattern() {
-      return values;
-    }
-
-    @Override
-    public int getRLEMode() {
-      return this.Mode;
-    }
-
-    @Override
-    public int getRLEPatternCount() {
-      return this.RLEPatternCount;
-    }
-
-    @Override
-    public void setRLEPattern(TsPrimitiveType[] vals) {
-      this.values = vals;
-    }
-
-    @Override
-    public void setRLEMode(int mode) {
-      this.Mode = mode;
-    }
-
-    @Override
-    public void setRLEPatternCount(int count) {
-      this.RLEPatternCount = count;
-    }
-
-    @Override
-    public void setObject(Object val) {
-      if (val instanceof TsPrimitiveType[]) {
-        setRLEPattern((TsPrimitiveType[]) val);
-        return;
-      }
-      throw new UnSupportedDataTypeException(
-          "TsRLEPattern can only be set TsPrimitiveType[] value");
-    }
-
-    @Override
-    public void reset() {
-      values = null;
-      RLEPatternCount = 0;
-    }
-
-    @Override
-    public int getSize() {
-      int size = 0;
-      for (TsPrimitiveType type : values) {
-        if (type != null) {
-          size += type.getSize();
-        }
-      }
-      // object header + array object header + Mode + RLEPatternCount
-      return 4 + 4 + size + 4 + 4;
-    }
-
-    @Override
-    public Object getValue() {
-      return getRLEPattern();
-    }
-
-    @Override
-    public String getStringValue() {
-      StringBuilder builder = new StringBuilder("[");
-      builder.append(values[0] == null ? "null" : values[0].getStringValue());
-      if (Mode == 1) {
-        for (int i = 1; i < values.length; i++) {
-          builder.append(", ").append(values[i] == null ? "null" : values[i].getStringValue());
-        }
-      } else {
-        String value = values[0] == null ? "null" : values[0].getStringValue();
-        for (int i = 1; i < RLEPatternCount; i++) {
-          builder.append(", ").append(value);
-        }
-      }
-
-      builder.append("]");
-      return builder.toString();
-    }
-
-    @Override
-    public TSDataType getDataType() {
-      return TSDataType.RLEPATTERN;
-    }
-
-    @Override
-    public int hashCode() {
-      return Arrays.hashCode(values);
-    }
-
-    @Override
-    public boolean equals(Object anObject) {
-      if (this == anObject) {
-        return true;
-      }
-      if (anObject instanceof TsRLEPattern) {
-        TsRLEPattern anotherTs = (TsRLEPattern) anObject;
-        if (anotherTs.values.length != this.values.length
-            || RLEPatternCount != anotherTs.getRLEPatternCount()
-            || Mode != anotherTs.getRLEMode()) {
           return false;
         }
         for (int i = 0; i < this.values.length; i++) {

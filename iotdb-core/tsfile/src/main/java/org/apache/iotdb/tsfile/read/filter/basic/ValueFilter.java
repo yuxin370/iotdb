@@ -24,7 +24,6 @@ import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.DataOutputStream;
@@ -78,17 +77,17 @@ public abstract class ValueFilter extends Filter {
   }
 
   @Override
-  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn rlePattern) {
-    boolean[] satisfyInfo = new boolean[rlePattern.getPositionCount()];
-    if (rlePattern.isRLEMode()) {
-      Arrays.fill(satisfyInfo, valueSatisfy(rlePattern.getObject(0)));
+  public boolean[] satisfyColumn(long[] timestamps, Column values, int logicPositionCount) {
+    boolean[] satisfyInfo = new boolean[logicPositionCount];
+    if (values.getPositionCount() == 1) {
+      Arrays.fill(satisfyInfo, valueSatisfy(values.getObject(0)));
     } else {
-      for (int i = 0; i < rlePattern.getPositionCount(); i++) {
-        if (rlePattern.isNull(i)) {
+      for (int i = 0; i < logicPositionCount; i++) {
+        if (values.isNull(i)) {
           // null not satisfy any filter, except IS NULL
           satisfyInfo[i] = false;
         } else {
-          satisfyInfo[i] = valueSatisfy(rlePattern.getObject(i));
+          satisfyInfo[i] = valueSatisfy(values.getObject(i));
         }
       }
     }
@@ -96,18 +95,25 @@ public abstract class ValueFilter extends Filter {
   }
 
   @Override
-  public boolean[] satisfyRLEPattern(
-      long[] timestamps, boolean[] isDeleted, RLEPatternColumn rlePattern) {
-    boolean[] satisfyInfo = new boolean[rlePattern.getPositionCount()];
-    if (rlePattern.isRLEMode()) {
-      Arrays.fill(satisfyInfo, valueSatisfy(rlePattern.getObject(0)));
+  public boolean[] satisfyColumn(
+      long[] timestamps, boolean[] bitMap, Column values, int logicPositionCount) {
+    boolean[] satisfyInfo = new boolean[logicPositionCount];
+    if (values.getPositionCount() == 1) {
+      boolean res = valueSatisfy(values.getObject(0));
+      if (res == true) {
+        for (int i = 0; i < logicPositionCount; i++) {
+          satisfyInfo[i] = !bitMap[i];
+        }
+      } else {
+        Arrays.fill(satisfyInfo, res);
+      }
     } else {
-      for (int i = 0; i < rlePattern.getPositionCount(); i++) {
-        if (rlePattern.isNull(i)) {
+      for (int i = 0; i < logicPositionCount; i++) {
+        if (values.isNull(i) || bitMap[i]) {
           // null not satisfy any filter, except IS NULL
           satisfyInfo[i] = false;
         } else {
-          satisfyInfo[i] = valueSatisfy(rlePattern.getObject(i));
+          satisfyInfo[i] = valueSatisfy(values.getObject(i));
         }
       }
     }

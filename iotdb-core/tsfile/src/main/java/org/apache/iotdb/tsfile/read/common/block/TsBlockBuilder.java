@@ -30,8 +30,6 @@ import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.FloatColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.IntColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.LongColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.utils.Binary;
@@ -39,6 +37,7 @@ import org.apache.iotdb.tsfile.utils.Binary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.String.format;
@@ -84,6 +83,17 @@ public class TsBlockBuilder {
 
   public TsBlockBuilder(int initialExpectedEntries, List<TSDataType> types) {
     this(initialExpectedEntries, DEFAULT_MAX_TSBLOCK_SIZE_IN_BYTES, types);
+  }
+
+  public TsBlockBuilder(
+      List<TSDataType> types,
+      TimeColumnBuilder templateTimeColumnBuilder,
+      ColumnBuilder[] templateValueColumnBuilders) {
+    this(
+        DEFAULT_MAX_TSBLOCK_SIZE_IN_BYTES,
+        types,
+        templateTimeColumnBuilder,
+        templateValueColumnBuilders);
   }
 
   public static TsBlockBuilder createWithOnlyTimeColumn() {
@@ -141,11 +151,6 @@ public class TsBlockBuilder {
         case TEXT:
           valueColumnBuilders[i] =
               new BinaryColumnBuilder(
-                  tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
-          break;
-        case RLEPATTERN:
-          valueColumnBuilders[i] =
-              new RLEColumnBuilder(
                   tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
           break;
         default:
@@ -216,15 +221,22 @@ public class TsBlockBuilder {
               new BinaryColumnBuilder(
                   tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
           break;
-        case RLEPATTERN:
-          valueColumnBuilders[i] =
-              new RLEColumnBuilder(
-                  tsBlockBuilderStatus.createColumnBuilderStatus(), initialExpectedEntries);
-          break;
         default:
           throw new IllegalArgumentException("Unknown data type: " + types.get(i));
       }
     }
+  }
+
+  public void buildValueColumnBuilders(ColumnBuilder[] templateValueColumnBuilders) {
+    List<TSDataType> tmpTypes = new ArrayList<TSDataType>();
+    valueColumnBuilders = new ColumnBuilder[types.size()];
+    for (int i = 0; i < valueColumnBuilders.length; i++) {
+      tmpTypes.add(templateValueColumnBuilders[i].getDataType());
+      valueColumnBuilders[i] =
+          templateValueColumnBuilders[i].newColumnBuilderLike(
+              tsBlockBuilderStatus.createColumnBuilderStatus());
+    }
+    this.types = tmpTypes;
   }
 
   public void reset() {
@@ -306,12 +318,6 @@ public class TsBlockBuilder {
     return retainedSizeInBytes;
   }
 
-  /**
-   * the postioncount in RLEPattern means the number of RLEPatterns, while the declaredPositions
-   * here means the actual value number, which require to handle in follow.
-   *
-   * @return
-   */
   public TsBlock build() {
     TimeColumn timeColumn = (TimeColumn) timeColumnBuilder.build();
     if (timeColumn.getPositionCount() != declaredPositions) {
@@ -324,14 +330,7 @@ public class TsBlockBuilder {
     Column[] columns = new Column[valueColumnBuilders.length];
     for (int i = 0; i < columns.length; i++) {
       columns[i] = valueColumnBuilders[i].build();
-      if (columns[i] instanceof RLEColumn) {
-        if (((RLEColumn) columns[i]).getValueCount() != declaredPositions) {
-          throw new IllegalStateException(
-              format(
-                  "Declared positions (%s) does not match column %s's number of entries (%s)",
-                  declaredPositions, i, ((RLEColumn) columns[i]).getValueCount()));
-        }
-      } else if (columns[i].getPositionCount() != declaredPositions) {
+      if (columns[i].getPositionCount() != declaredPositions) {
         throw new IllegalStateException(
             format(
                 "Declared positions (%s) does not match column %s's number of entries (%s)",

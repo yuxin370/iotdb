@@ -22,7 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.operator;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.read.filter.basic.OperatorType;
 
@@ -69,8 +69,8 @@ public class Not extends Filter {
   }
 
   @Override
-  public boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPattern) {
-    boolean[] result = filter.satisfyRLEPattern(timestamps, RLEPattern);
+  public boolean[] satisfyColumn(long[] timestamps, Column values, int logicPositionCount) {
+    boolean[] result = filter.satisfyColumn(timestamps, values, logicPositionCount);
     for (int i = 0; i < result.length; i++) {
       result[i] = !result[i];
     }
@@ -78,11 +78,11 @@ public class Not extends Filter {
   }
 
   @Override
-  public boolean[] satisfyRLEPattern(
-      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPattern) {
-    boolean[] result = filter.satisfyRLEPattern(timestamps, isDeleted, RLEPattern);
+  public boolean[] satisfyColumn(
+      long[] timestamps, boolean[] bitMap, Column values, int logicPositionCount) {
+    boolean[] result = filter.satisfyColumn(timestamps, bitMap, values, logicPositionCount);
     for (int i = 0; i < result.length; i++) {
-      if (isDeleted[i]) {
+      if (bitMap[i]) {
         result[i] = false;
       } else {
         result[i] = !result[i];

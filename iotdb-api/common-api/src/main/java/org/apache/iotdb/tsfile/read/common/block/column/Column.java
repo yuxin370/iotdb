@@ -61,6 +61,11 @@ public interface Column {
     throw new UnsupportedOperationException(getClass().getName());
   }
 
+  /** Gets a Column at {@code index}. */
+  default Column getColumn(int index) {
+    throw new UnsupportedOperationException(getClass().getName());
+  }
+
   /** Gets an Object at {@code position}. */
   default Object getObject(int position) {
     throw new UnsupportedOperationException(getClass().getName());
@@ -106,11 +111,6 @@ public interface Column {
     throw new UnsupportedOperationException(getClass().getName());
   }
 
-  /** return if the RLEPattern at position is NULL */
-  default boolean isNullRLE(int position) {
-    throw new UnsupportedOperationException(getClass().getName());
-  }
-
   /**
    * Is it possible the column may have a null value? If false, the column cannot contain a null,
    * but if true, the column may or may not have a null.
@@ -152,12 +152,6 @@ public interface Column {
    * but with different array offset.
    */
   Column subColumn(int fromIndex);
-
-  /**
-   * This method will create a temporary view of origin column, which will reuse the array of column
-   * but with only retained part of the array values.
-   */
-  Column subColumn(boolean[] valueRetained);
 
   /** reverse the column */
   void reverse();

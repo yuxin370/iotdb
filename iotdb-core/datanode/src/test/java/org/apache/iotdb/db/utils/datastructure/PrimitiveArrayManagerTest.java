@@ -69,9 +69,7 @@ public class PrimitiveArrayManagerTest {
     double limit = POOLED_ARRAYS_MEMORY_THRESHOLD / ARRAY_SIZE / totalDataTypeSize;
     for (int i = 0; i < limit + 1; i++) {
       for (TSDataType type : TSDataType.values()) {
-        if (type.equals(TSDataType.VECTOR)
-            || type.equals(TSDataType.UNKNOWN)
-            || type.equals(TSDataType.RLEPATTERN)) {
+        if (type.equals(TSDataType.VECTOR) || type.equals(TSDataType.UNKNOWN)) {
           continue;
         }
         Object o = PrimitiveArrayManager.allocate(type);

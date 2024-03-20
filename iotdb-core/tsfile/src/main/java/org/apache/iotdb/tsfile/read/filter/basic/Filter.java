@@ -22,7 +22,7 @@ package org.apache.iotdb.tsfile.read.filter.basic;
 import org.apache.iotdb.tsfile.file.metadata.IMetadata;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.filter.factory.FilterFactory;
 import org.apache.iotdb.tsfile.read.filter.factory.TimeFilterApi;
 import org.apache.iotdb.tsfile.read.filter.factory.ValueFilterApi;
@@ -84,22 +84,21 @@ public abstract class Filter {
   public abstract boolean[] satisfyTsBlock(TsBlock tsBlock);
 
   /**
-   * To examine whether the RLEPattern(with many values) is satisfied with the filter.
+   * To examine whether the values(with one or many values) is satisfied with the filter.
    *
-   * @param page data
    * @return for each value, true if the value is satisfied with the filter, false otherwise
    */
-  public abstract boolean[] satisfyRLEPattern(long[] timestamps, RLEPatternColumn RLEPattern);
+  public abstract boolean[] satisfyColumn(long[] timestamps, Column values, int logicPositionCount);
 
   /**
-   * To examine whether the RLEPattern(with many values) is satisfied with the filter.
+   * To examine whether the values(with one or many values) is satisfied with the filter, where
+   * bitMap marks the deleted values.
    *
-   * @param page data
    * @return for each value, true if the value is not deleted and satisfied with the filter, false
    *     otherwise
    */
-  public abstract boolean[] satisfyRLEPattern(
-      long[] timestamps, boolean[] isDeleted, RLEPatternColumn RLEPattern);
+  public abstract boolean[] satisfyColumn(
+      long[] timestamps, boolean[] bitMap, Column values, int logicPositionCount);
 
   /**
    * To examine whether the block can be skipped.

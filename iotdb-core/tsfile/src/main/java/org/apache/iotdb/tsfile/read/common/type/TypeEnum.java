@@ -30,7 +30,5 @@ public enum TypeEnum {
 
   BOOLEAN,
 
-  BINARY,
-
-  RLEPATTERN
+  BINARY
 }

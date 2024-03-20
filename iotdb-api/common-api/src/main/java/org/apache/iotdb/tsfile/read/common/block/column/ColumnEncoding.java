@@ -34,10 +34,8 @@ public enum ColumnEncoding {
   BINARY_ARRAY((byte) 3),
   /** All data types. RLE Pattern with postionCount fixed 1. */
   RLE((byte) 4),
-  /** All data types. RLE Pattern. */
-  RLE_PATTERN((byte) 5),
   /** All data types. RLE ARRAY. */
-  RLE_ARRAY((byte) 6);
+  RLE_ARRAY((byte) 5);
 
   private final byte value;
 
@@ -66,8 +64,6 @@ public enum ColumnEncoding {
       case 4:
         return RLE;
       case 5:
-        return RLE_PATTERN;
-      case 6:
         return RLE_ARRAY;
       default:
         throw new IllegalArgumentException("Invalid value: " + value);

@@ -138,7 +138,7 @@ public class LocalSourceHandle implements ISourceHandle {
     if (tsBlock != null) {
       long startTime = System.nanoTime();
       try {
-        return serde.serialize(tsBlock.reclaim());
+        return serde.serialize(tsBlock.convertAllRLEColumnToGenericColumn());
       } catch (Exception e) {
         throw new IoTDBException(e, TSStatusCode.TSBLOCK_SERIALIZE_ERROR.getStatusCode());
       } finally {

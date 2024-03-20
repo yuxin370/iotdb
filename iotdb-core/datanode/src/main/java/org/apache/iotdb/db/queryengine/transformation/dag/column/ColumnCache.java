@@ -20,7 +20,6 @@
 package org.apache.iotdb.db.queryengine.transformation.dag.column;
 
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -45,11 +44,7 @@ public class ColumnCache {
   }
 
   public int getPositionCount() {
-    return column != null
-        ? (column instanceof RLEColumn
-            ? ((RLEColumn) column).getValueCount()
-            : column.getPositionCount())
-        : 0;
+    return column != null ? column.getPositionCount() : 0;
   }
 
   public void cacheColumn(Column column, int referenceCount) {

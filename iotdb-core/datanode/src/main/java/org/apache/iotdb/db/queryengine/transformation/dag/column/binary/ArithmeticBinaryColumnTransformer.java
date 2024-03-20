@@ -23,9 +23,7 @@ import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransform
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEPatternColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.RunLengthEncodedColumn;
-import org.apache.iotdb.tsfile.read.common.type.RlePatternType;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
 import org.slf4j.Logger;
@@ -42,31 +40,31 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
 
   private void doTransformBetweenRLE(
       Column leftColumn, Column rightColumn, ColumnBuilder builder, int positionCount) {
-    int leftPositionCount = leftColumn.getPositionCount();
-    int rightPositionCount = rightColumn.getPositionCount();
+    int leftPatternCount = ((RLEColumn) leftColumn).getPatternCount();
+    int rightPatternCount = ((RLEColumn) rightColumn).getPatternCount();
     int leftIndex = 0, rightIndex = 0;
     int curLeft = 0, curRight = 0;
-    RLEPatternColumn leftPatternColumn = ((RLEColumn) leftColumn).getRLEPattern(leftIndex);
-    RLEPatternColumn rightPatternColumn = ((RLEColumn) rightColumn).getRLEPattern(rightIndex);
-    boolean isRLELeft = leftPatternColumn.isRLEMode();
-    boolean isRLERight = rightPatternColumn.isRLEMode();
-    int curLeftPositionCount = leftPatternColumn.getPositionCount();
-    int curRightPositionCount = rightPatternColumn.getPositionCount();
+    Column leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
+    Column rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
+    boolean isRLELeft = leftPatternColumn.getPositionCount() == 1;
+    boolean isRLERight = rightPatternColumn.getPositionCount() == 1;
+    int curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
+    int curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
     int index = 0;
     int length = 0;
     while (index < positionCount) {
       if (curLeft == curLeftPositionCount) {
         /** current leftPattern has reached end */
-        if (leftIndex + 1 < leftPositionCount) {
+        if (leftIndex + 1 < leftPatternCount) {
           /** read next rlePattern */
           curLeft = 0;
           leftIndex++;
-          leftPatternColumn = ((RLEColumn) leftColumn).getRLEPattern(leftIndex);
-          curLeftPositionCount = leftPatternColumn.getPositionCount();
-          isRLELeft = leftPatternColumn.isRLEMode();
+          leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
+          curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
+          isRLELeft = leftPatternColumn.getPositionCount() == 1;
         } else {
           /** leftRLEColumn has reached end, if rightRLEColumn didn't reach end, something wrong. */
-          if (rightIndex < rightPositionCount - 1) {
+          if (rightIndex < rightPatternCount - 1) {
             throw new RuntimeException("leftColumn and rightColumn have unequal length");
           } else {
             break;
@@ -76,16 +74,16 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
 
       if (curRight == curRightPositionCount) {
         /** current rightPattern has reached end */
-        if (rightIndex + 1 < rightPositionCount) {
+        if (rightIndex + 1 < rightPatternCount) {
           /** read next rlePattern */
           curRight = 0;
           rightIndex++;
-          rightPatternColumn = ((RLEColumn) rightColumn).getRLEPattern(rightIndex);
-          curRightPositionCount = rightPatternColumn.getPositionCount();
-          isRLERight = rightPatternColumn.isRLEMode();
+          rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
+          curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
+          isRLERight = rightPatternColumn.getPositionCount() == 1;
         } else {
           /** rightRLEColumn has reached end, if leftRLEColumn didn't reach end, something wrong. */
-          if (leftIndex < leftPositionCount - 1) {
+          if (leftIndex < leftPatternCount - 1) {
             throw new RuntimeException("leftColumn and rightColumn have unequal length");
           } else {
             break;
@@ -101,8 +99,8 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
       if (isRLELeft && isRLERight) {
         double res =
             transform(
-                RlePatternType.getInstance().getDouble(leftPatternColumn, 0),
-                RlePatternType.getInstance().getDouble(rightPatternColumn, 0));
+                leftTransformer.getType().getDouble(leftPatternColumn, 0),
+                rightTransformer.getType().getDouble(rightPatternColumn, 0));
         for (int i = 0; i < length; i++) {
           returnType.writeDouble(builder, res);
         }
@@ -110,28 +108,26 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
         curLeft += length;
         curRight += length;
       } else if (isRLELeft) {
-        double leftValue = RlePatternType.getInstance().getDouble(leftPatternColumn, 0);
+        double leftValue = leftTransformer.getType().getDouble(leftPatternColumn, 0);
         for (int i = 0; i < length; i++, curRight++, index++) {
           if (!rightPatternColumn.isNull(curRight)) {
             returnType.writeDouble(
                 builder,
                 transform(
-                    leftValue,
-                    RlePatternType.getInstance().getDouble(rightPatternColumn, curRight)));
+                    leftValue, rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
           } else {
             builder.appendNull();
           }
         }
         curLeft += length;
       } else if (isRLERight) {
-        double rightValue = RlePatternType.getInstance().getDouble(rightPatternColumn, 0);
+        double rightValue = rightTransformer.getType().getDouble(rightPatternColumn, 0);
         for (int i = 0; i < length; i++, curLeft++, index++) {
           if (!leftPatternColumn.isNull(curLeft)) {
             returnType.writeDouble(
                 builder,
                 transform(
-                    RlePatternType.getInstance().getDouble(leftPatternColumn, curLeft),
-                    rightValue));
+                    leftTransformer.getType().getDouble(leftPatternColumn, curLeft), rightValue));
           } else {
             builder.appendNull();
           }
@@ -143,8 +139,8 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
             returnType.writeDouble(
                 builder,
                 transform(
-                    RlePatternType.getInstance().getDouble(leftPatternColumn, curLeft),
-                    RlePatternType.getInstance().getDouble(rightPatternColumn, curRight)));
+                    leftTransformer.getType().getDouble(leftPatternColumn, curLeft),
+                    rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
           } else {
             builder.appendNull();
           }
@@ -155,12 +151,12 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
 
   private void doTransformWithLeftRLE(
       Column leftColumn, Column rightColumn, ColumnBuilder builder, int positionCount) {
-    int leftPositionCount = leftColumn.getPositionCount();
+    int leftPatternCount = ((RLEColumn) leftColumn).getPatternCount();
     int leftIndex = 0;
     int curLeft = 0;
-    RLEPatternColumn leftPatternColumn = ((RLEColumn) leftColumn).getRLEPattern(leftIndex);
-    boolean isRLELeft = leftPatternColumn.isRLEMode();
-    int curLeftPositionCount = leftPatternColumn.getPositionCount();
+    Column leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
+    boolean isRLELeft = leftPatternColumn.getPositionCount() == 1;
+    int curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
     int index = 0;
     int length = 0;
 
@@ -172,13 +168,13 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
       while (index < positionCount) {
         if (curLeft == curLeftPositionCount) {
           /** current leftPattern has reached end */
-          if (leftIndex + 1 < leftPositionCount) {
+          if (leftIndex + 1 < leftPatternCount) {
             /** read next rlePattern */
             curLeft = 0;
             leftIndex++;
-            leftPatternColumn = ((RLEColumn) leftColumn).getRLEPattern(leftIndex);
-            curLeftPositionCount = leftPatternColumn.getPositionCount();
-            isRLELeft = leftPatternColumn.isRLEMode();
+            leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
+            curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
+            isRLELeft = leftPatternColumn.getPositionCount() == 1;
           } else {
             break;
           }
@@ -188,8 +184,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
                 ? positionCount - index
                 : curLeftPositionCount - curLeft;
         if (isRLELeft) {
-          double res =
-              transform(RlePatternType.getInstance().getDouble(leftPatternColumn, 0), value);
+          double res = transform(leftTransformer.getType().getDouble(leftPatternColumn, 0), value);
           for (int i = 0; i < length; i++) {
             returnType.writeDouble(builder, res);
           }
@@ -201,7 +196,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
               returnType.writeDouble(
                   builder,
                   transform(
-                      RlePatternType.getInstance().getDouble(leftPatternColumn, curLeft), value));
+                      leftTransformer.getType().getDouble(leftPatternColumn, curLeft), value));
             } else {
               builder.appendNull();
             }
@@ -212,13 +207,13 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
       while (index < positionCount) {
         if (curLeft == curLeftPositionCount) {
           /** current leftPattern has reached end */
-          if (leftIndex + 1 < leftPositionCount) {
+          if (leftIndex + 1 < leftPatternCount) {
             /** read next rlePattern */
             curLeft = 0;
             leftIndex++;
-            leftPatternColumn = ((RLEColumn) leftColumn).getRLEPattern(leftIndex);
-            curLeftPositionCount = leftPatternColumn.getPositionCount();
-            isRLELeft = leftPatternColumn.isRLEMode();
+            leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
+            curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
+            isRLELeft = leftPatternColumn.getPositionCount() == 1;
           } else {
             break;
           }
@@ -228,7 +223,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
                 ? positionCount - index
                 : curLeftPositionCount - curLeft;
         if (isRLELeft) {
-          double leftValue = RlePatternType.getInstance().getDouble(leftPatternColumn, 0);
+          double leftValue = leftTransformer.getType().getDouble(leftPatternColumn, 0);
           for (int i = 0; i < length; i++, index++) {
             if (!rightColumn.isNull(index)) {
               returnType.writeDouble(
@@ -245,7 +240,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
               returnType.writeDouble(
                   builder,
                   transform(
-                      RlePatternType.getInstance().getDouble(leftPatternColumn, curLeft),
+                      leftTransformer.getType().getDouble(leftPatternColumn, curLeft),
                       rightTransformer.getType().getDouble(rightColumn, index)));
             } else {
               builder.appendNull();
@@ -258,12 +253,12 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
 
   private void doTransformWithRightRLE(
       Column leftColumn, Column rightColumn, ColumnBuilder builder, int positionCount) {
-    int rightPositionCount = rightColumn.getPositionCount();
+    int rightPatternCount = ((RLEColumn) rightColumn).getPatternCount();
     int rightIndex = 0;
     int curRight = 0;
-    RLEPatternColumn rightPatternColumn = ((RLEColumn) rightColumn).getRLEPattern(rightIndex);
-    boolean isRLERight = rightPatternColumn.isRLEMode();
-    int curRightPositionCount = rightPatternColumn.getPositionCount();
+    Column rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
+    boolean isRLERight = rightPatternColumn.getPositionCount() == 1;
+    int curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
     int index = 0;
     int length = 0;
 
@@ -275,13 +270,13 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
       while (index < positionCount) {
         if (curRight == curRightPositionCount) {
           /** current rightPattern has reached end */
-          if (rightIndex + 1 < rightPositionCount) {
+          if (rightIndex + 1 < rightPatternCount) {
             /** read next rlePattern */
             curRight = 0;
             rightIndex++;
-            rightPatternColumn = ((RLEColumn) rightColumn).getRLEPattern(rightIndex);
-            curRightPositionCount = rightPatternColumn.getPositionCount();
-            isRLERight = rightPatternColumn.isRLEMode();
+            rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
+            curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
+            isRLERight = rightPatternColumn.getPositionCount() == 1;
           } else {
             break;
           }
@@ -293,7 +288,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
                 : curRightPositionCount - curRight;
         if (isRLERight) {
           double res =
-              transform(value, RlePatternType.getInstance().getDouble(rightPatternColumn, 0));
+              transform(value, rightTransformer.getType().getDouble(rightPatternColumn, 0));
           for (int i = 0; i < length; i++) {
             returnType.writeDouble(builder, res);
           }
@@ -305,7 +300,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
               returnType.writeDouble(
                   builder,
                   transform(
-                      value, RlePatternType.getInstance().getDouble(rightPatternColumn, curRight)));
+                      value, rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
             } else {
               builder.appendNull();
             }
@@ -316,13 +311,13 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
       while (index < positionCount) {
         if (curRight == curRightPositionCount) {
           /** current rightPattern has reached end */
-          if (rightIndex + 1 < rightPositionCount) {
+          if (rightIndex + 1 < rightPatternCount) {
             /** read next rlePattern */
             curRight = 0;
             rightIndex++;
-            rightPatternColumn = ((RLEColumn) rightColumn).getRLEPattern(rightIndex);
-            curRightPositionCount = rightPatternColumn.getPositionCount();
-            isRLERight = rightPatternColumn.isRLEMode();
+            rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
+            curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
+            isRLERight = rightPatternColumn.getPositionCount() == 1;
           } else {
             break;
           }
@@ -332,7 +327,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
                 ? positionCount - index
                 : curRightPositionCount - curRight;
         if (isRLERight) {
-          double rightValue = RlePatternType.getInstance().getDouble(rightPatternColumn, 0);
+          double rightValue = rightTransformer.getType().getDouble(rightPatternColumn, 0);
           for (int i = 0; i < length; i++, index++) {
             if (!leftColumn.isNull(index)) {
               returnType.writeDouble(
@@ -350,7 +345,7 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
                   builder,
                   transform(
                       leftTransformer.getType().getDouble(leftColumn, index),
-                      RlePatternType.getInstance().getDouble(rightPatternColumn, curRight)));
+                      rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
             } else {
               builder.appendNull();
             }
