@@ -25,9 +25,8 @@ import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.block.column.BooleanColumn;
-import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.IntColumn;
-import org.apache.iotdb.tsfile.utils.Pair;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -110,10 +109,10 @@ public class IntRleDecoder extends RleDecoder {
    * read an RLEPattern from InputStream.
    *
    * @param buffer - ByteBuffer
-   * @return Pair<Column, Integer> - Column,logic positionCount
+   * @return RLEPattern - Column,logic positionCount
    */
   @Override
-  public Pair<Column, Integer> readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
+  public RLEPattern readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
     int[] tmp;
     if (!isLengthAndBitWidthReaded) {
       // start to read a new rle+bit-packing pattern
@@ -158,14 +157,14 @@ public class IntRleDecoder extends RleDecoder {
 
     switch (dataType) {
       case INT32:
-        return new Pair<Column, Integer>(
+        return new RLEPattern(
             new IntColumn(tmp.length, Optional.empty(), tmp), new Integer(valueCount));
       case BOOLEAN:
         boolean[] tmpBoolean = new boolean[tmp.length];
         for (int i = 0; i < tmpBoolean.length; i++) {
           tmpBoolean[i] = tmp[i] == 0 ? false : true;
         }
-        return new Pair<Column, Integer>(
+        return new RLEPattern(
             new BooleanColumn(1, Optional.empty(), tmpBoolean), new Integer(valueCount));
       default:
         throw new UnSupportedDataTypeException(

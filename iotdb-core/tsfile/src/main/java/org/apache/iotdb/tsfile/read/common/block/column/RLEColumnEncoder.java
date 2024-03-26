@@ -20,6 +20,7 @@
 package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -31,13 +32,13 @@ public class RLEColumnEncoder implements ColumnEncoder {
   public Column readColumn(ByteBuffer input, TSDataType dataType, int positionCount) {
     // Serialized data layout:
     //
-    // +-----------+---------------+----------------+-------------------------+--------------------------+
-    // | encoding  | pattern count | offset index   | physical positionCounts | serialized inner
+    // +----------+---------------+--------------+-------------------------+--------------------------+
+    // | encoding | pattern count | offset index | physical positionCounts | serialized inner
     // columns |
-    // +-----------+---------------+----------------+-------------------------+--------------------------+
-    // | byte      | int           | list[int]      |  list[int]              | list[bytes]
-    //     |
-    // +-----------+---------------+----------------+-------------------------+--------------------------+
+    // +----------+---------------+--------------+-------------------------+--------------------------+
+    // | byte     | int           | list[int]    |  list[int]              | list[bytes]
+    //  |
+    // +----------+---------------+--------------+-------------------------+--------------------------+
     ColumnEncoder columnEncoder = ColumnEncoderFactory.get(ColumnEncoding.deserializeFrom(input));
     int patternCount = input.getInt();
     int[] patternOffsetIndex = new int[patternCount + 1];
@@ -49,10 +50,16 @@ public class RLEColumnEncoder implements ColumnEncoder {
     for (int i = 0; i < patternCount; i++) {
       physicalPositionCount[i] = input.getInt();
     }
-    Column[] values = new Column[patternCount];
+
+    RLEPattern[] values = new RLEPattern[patternCount];
     for (int i = 0; i < patternCount; i++) {
-      values[i] = columnEncoder.readColumn(input, dataType, physicalPositionCount[i]);
+      RLEPattern tmp =
+          new RLEPattern(
+              columnEncoder.readColumn(input, dataType, physicalPositionCount[i]),
+              patternOffsetIndex[i + 1] - patternOffsetIndex[i]);
+      values[i] = tmp;
     }
+
     return new RLEColumn(positionCount, patternCount, values, patternOffsetIndex);
   }
 

@@ -29,6 +29,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 
@@ -184,20 +186,43 @@ public class AlignedSeriesScanOperator extends AbstractDataSourceOperator {
     }
   }
 
+  private void appendRLEToBuilder(int columnIndex, TsBlock tsBlock, int size) {
+    RLEColumn column = (RLEColumn) tsBlock.getColumn(columnIndex);
+    ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(columnIndex);
+    if (!(columnBuilder instanceof RLEColumnBuilder)) {
+      resultTsBlockBuilder.buildValueColumnBuilders(
+          new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
+    }
+    RLEColumnBuilder rlecolumnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(columnIndex);
+
+    for (int i = 0, patternCount = column.getPatternCount(); i < patternCount; i++) {
+      int patternLength = column.getLogicPositionCount(i);
+      rlecolumnBuilder.writeColumn(column.getColumn(i), patternLength);
+    }
+  }
+
   private void appendOneColumn(int columnIndex, TsBlock tsBlock, int size) {
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(columnIndex);
     Column column = tsBlock.getColumn(columnIndex);
-    if (column.mayHaveNull()) {
-      for (int i = 0; i < size; i++) {
-        if (column.isNull(i)) {
-          columnBuilder.appendNull();
-        } else {
+    if ((column instanceof RLEColumn)
+        && (columnBuilder instanceof RLEColumnBuilder
+            || resultTsBlockBuilder.getPositionCount() == 0)) {
+      appendRLEToBuilder(columnIndex,tsBlock,size);
+    } else if (columnBuilder instanceof RLEColumnBuilder) {
+      ((RLEColumnBuilder) columnBuilder).writeColumn(column, size);
+    } else {
+      if (column.mayHaveNull()) {
+        for (int i = 0; i < size; i++) {
+          if (column.isNull(i)) {
+            columnBuilder.appendNull();
+          } else {
+            columnBuilder.write(column, i);
+          }
+        }
+      } else {
+        for (int i = 0; i < size; i++) {
           columnBuilder.write(column, i);
         }
-      }
-    } else {
-      for (int i = 0; i < size; i++) {
-        columnBuilder.write(column, i);
       }
     }
   }

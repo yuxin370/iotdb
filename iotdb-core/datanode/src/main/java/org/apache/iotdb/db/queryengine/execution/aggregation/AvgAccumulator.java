@@ -228,13 +228,18 @@ public class AvgAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       RLEColumn valueColumn = (RLEColumn) column[1];
       int curIndex = 0, i = 0;
+      int patternCount = valueColumn.getPatternCount();
+
       while (curIndex <= lastIndex) {
+
         Column curPattern = valueColumn.getColumn(i);
         int curPatternLength = valueColumn.getLogicPositionCount(i);
+        int tp = curPatternLength;
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
                 : lastIndex - curIndex + 1;
+
         if (curPattern.getPositionCount() == 1) {
           int validCount = 0;
           if (bitMap == null || bitMap.getRegion(curIndex, curPatternLength).isAllMarked()) {

@@ -23,9 +23,8 @@ import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.encoding.bitpacking.LongPacker;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.LongColumn;
-import org.apache.iotdb.tsfile.utils.Pair;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -103,10 +102,10 @@ public class LongRleDecoder extends RleDecoder {
    * read an RLEPattern from InputStream.
    *
    * @param buffer - ByteBuffer
-   * @return Pair<Column, Integer> - Column,logic positionCount
+   * @return RLEColumn - Column,logic positionCount
    */
   @Override
-  public Pair<Column, Integer> readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
+  public RLEPattern readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
     long[] tmp;
     if (!isLengthAndBitWidthReaded) {
       // start to read a new rle+bit-packing pattern
@@ -149,7 +148,7 @@ public class LongRleDecoder extends RleDecoder {
       isLengthAndBitWidthReaded = false;
     }
 
-    return new Pair<Column, Integer>(
+    return new RLEPattern(
         new LongColumn(tmp.length, Optional.empty(), tmp), new Integer(valueCount));
   }
 

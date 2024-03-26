@@ -24,6 +24,8 @@ import org.apache.iotdb.db.queryengine.transformation.dag.column.unary.UnaryColu
 import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 import org.apache.iotdb.tsfile.utils.BytesUtils;
 
@@ -43,6 +45,64 @@ public class SubStringFunctionColumnTransformer extends UnaryColumnTransformer {
 
   @Override
   protected void doTransform(Column column, ColumnBuilder columnBuilder) {
+    if (column instanceof RLEColumn) {
+      RLEColumn rleColumn = (RLEColumn) column;
+      if (!(columnBuilder instanceof RLEColumnBuilder)) {
+        columnBuilder =
+            new RLEColumnBuilder(null, rleColumn.getPatternCount(), returnType.getTypeEnum());
+      }
+      for (int i = 0, n = rleColumn.getPatternCount(); i < n; i++) {
+        Column aColumn = rleColumn.getColumn(i);
+        int logicPositionCount = rleColumn.getLogicPositionCount(i);
+        if (aColumn.getPositionCount() == 1) {
+          ColumnBuilder columnBuilderTmp = returnType.createColumnBuilder(1);
+          if (!aColumn.isNull(0)) {
+
+            String currentValue = aColumn.getBinary(0).getStringValue(TSFileConfig.STRING_CHARSET);
+            if (beginPosition >= currentValue.length() || endPosition < 0) {
+              currentValue = EMPTY_STRING;
+            } else {
+              if (endPosition >= currentValue.length()) {
+                currentValue = currentValue.substring(beginPosition);
+              } else {
+                currentValue = currentValue.substring(beginPosition, endPosition);
+              }
+            }
+            columnBuilderTmp.writeBinary(BytesUtils.valueOf(currentValue));
+
+          } else {
+            columnBuilderTmp.appendNull();
+          }
+
+          columnBuilder.writeColumn(columnBuilderTmp.build(), logicPositionCount);
+        } else {
+          ColumnBuilder columnBuilderTmp = returnType.createColumnBuilder(logicPositionCount);
+          for (int j = 0; j < logicPositionCount; j++) {
+            if (!aColumn.isNull(j)) {
+
+              String currentValue =
+                  aColumn.getBinary(j).getStringValue(TSFileConfig.STRING_CHARSET);
+              if (beginPosition >= currentValue.length() || endPosition < 0) {
+                currentValue = EMPTY_STRING;
+              } else {
+                if (endPosition >= currentValue.length()) {
+                  currentValue = currentValue.substring(beginPosition);
+                } else {
+                  currentValue = currentValue.substring(beginPosition, endPosition);
+                }
+              }
+              columnBuilderTmp.writeBinary(BytesUtils.valueOf(currentValue));
+
+            } else {
+              columnBuilderTmp.appendNull();
+            }
+          }
+          columnBuilder.writeColumn(columnBuilderTmp.build(), logicPositionCount);
+        }
+      }
+      return;
+    }
+
     for (int i = 0, n = column.getPositionCount(); i < n; i++) {
       if (!column.isNull(i)) {
         String currentValue = column.getBinary(i).getStringValue(TSFileConfig.STRING_CHARSET);

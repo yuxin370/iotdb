@@ -149,206 +149,101 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
     }
   }
 
-  private void doTransformWithLeftRLE(
+  private void doTransformWithLeftRLEandConstant(
       Column leftColumn, Column rightColumn, ColumnBuilder builder, int positionCount) {
     int leftPatternCount = ((RLEColumn) leftColumn).getPatternCount();
     int leftIndex = 0;
     int curLeft = 0;
     Column leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
-    boolean isRLELeft = leftPatternColumn.getPositionCount() == 1;
     int curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
     int index = 0;
     int length = 0;
-
-    if (!(leftColumn instanceof RLEColumn)) {
-      throw new IllegalArgumentException("left Column is not a RLEColumn, RLEColumn expected.");
-    }
-    if (rightColumn instanceof RunLengthEncodedColumn) {
-      double value = rightTransformer.getType().getDouble(rightColumn, 0);
-      while (index < positionCount) {
-        if (curLeft == curLeftPositionCount) {
-          /** current leftPattern has reached end */
-          if (leftIndex + 1 < leftPatternCount) {
-            /** read next rlePattern */
-            curLeft = 0;
-            leftIndex++;
-            leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
-            curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
-            isRLELeft = leftPatternColumn.getPositionCount() == 1;
-          } else {
-            break;
-          }
-        }
-        length =
-            curLeftPositionCount - curLeft > positionCount - index
-                ? positionCount - index
-                : curLeftPositionCount - curLeft;
-        if (isRLELeft) {
-          double res = transform(leftTransformer.getType().getDouble(leftPatternColumn, 0), value);
-          for (int i = 0; i < length; i++) {
-            returnType.writeDouble(builder, res);
-          }
-          index += length;
-          curLeft += length;
+    double value = rightTransformer.getType().getDouble(rightColumn, 0);
+    while (index < positionCount) {
+      if (curLeft == curLeftPositionCount) {
+        /** current leftPattern has reached end */
+        if (leftIndex + 1 < leftPatternCount) {
+          /** read next rlePattern */
+          curLeft = 0;
+          leftIndex++;
+          leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
+          curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
         } else {
-          for (int i = 0; i < length; i++, curLeft++, index++) {
-            if (!leftPatternColumn.isNull(curLeft)) {
-              returnType.writeDouble(
-                  builder,
-                  transform(
-                      leftTransformer.getType().getDouble(leftPatternColumn, curLeft), value));
-            } else {
-              builder.appendNull();
-            }
-          }
+          throw new RuntimeException(
+              "The positionCount of leftColumn is less than the requested positionCount");
         }
       }
-    } else {
-      while (index < positionCount) {
-        if (curLeft == curLeftPositionCount) {
-          /** current leftPattern has reached end */
-          if (leftIndex + 1 < leftPatternCount) {
-            /** read next rlePattern */
-            curLeft = 0;
-            leftIndex++;
-            leftPatternColumn = ((RLEColumn) leftColumn).getColumn(leftIndex);
-            curLeftPositionCount = ((RLEColumn) leftColumn).getLogicPositionCount(leftIndex);
-            isRLELeft = leftPatternColumn.getPositionCount() == 1;
-          } else {
-            break;
-          }
+      length =
+          curLeftPositionCount - curLeft > positionCount - index
+              ? positionCount - index
+              : curLeftPositionCount - curLeft;
+      if (leftPatternColumn.getPositionCount() == 1) {
+        double res = transform(leftTransformer.getType().getDouble(leftPatternColumn, 0), value);
+        for (int i = 0; i < length; i++) {
+          returnType.writeDouble(builder, res);
         }
-        length =
-            curLeftPositionCount - curLeft > positionCount - index
-                ? positionCount - index
-                : curLeftPositionCount - curLeft;
-        if (isRLELeft) {
-          double leftValue = leftTransformer.getType().getDouble(leftPatternColumn, 0);
-          for (int i = 0; i < length; i++, index++) {
-            if (!rightColumn.isNull(index)) {
-              returnType.writeDouble(
-                  builder,
-                  transform(leftValue, rightTransformer.getType().getDouble(rightColumn, index)));
-            } else {
-              builder.appendNull();
-            }
-          }
-          curLeft += length;
-        } else {
-          for (int i = 0; i < length; i++, curLeft++, index++) {
-            if (!rightColumn.isNull(index) && !leftPatternColumn.isNull(curLeft)) {
-              returnType.writeDouble(
-                  builder,
-                  transform(
-                      leftTransformer.getType().getDouble(leftPatternColumn, curLeft),
-                      rightTransformer.getType().getDouble(rightColumn, index)));
-            } else {
-              builder.appendNull();
-            }
+        index += length;
+        curLeft += length;
+      } else {
+        for (int i = 0; i < length; i++, curLeft++, index++) {
+          if (!leftPatternColumn.isNull(curLeft)) {
+            returnType.writeDouble(
+                builder,
+                transform(leftTransformer.getType().getDouble(leftPatternColumn, curLeft), value));
+          } else {
+            builder.appendNull();
           }
         }
       }
     }
   }
 
-  private void doTransformWithRightRLE(
+  private void doTransformWithRightRLEandConstant(
       Column leftColumn, Column rightColumn, ColumnBuilder builder, int positionCount) {
     int rightPatternCount = ((RLEColumn) rightColumn).getPatternCount();
     int rightIndex = 0;
     int curRight = 0;
     Column rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
-    boolean isRLERight = rightPatternColumn.getPositionCount() == 1;
     int curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
     int index = 0;
     int length = 0;
-
-    if (!(rightColumn instanceof RLEColumn)) {
-      throw new IllegalArgumentException("right Column is not a RLEColumn, RLEColumn expected.");
-    }
-    if (leftColumn instanceof RunLengthEncodedColumn) {
-      double value = leftTransformer.getType().getDouble(leftColumn, 0);
-      while (index < positionCount) {
-        if (curRight == curRightPositionCount) {
-          /** current rightPattern has reached end */
-          if (rightIndex + 1 < rightPatternCount) {
-            /** read next rlePattern */
-            curRight = 0;
-            rightIndex++;
-            rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
-            curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
-            isRLERight = rightPatternColumn.getPositionCount() == 1;
-          } else {
-            break;
-          }
-        }
-
-        length =
-            curRightPositionCount - curRight > positionCount - index
-                ? positionCount - index
-                : curRightPositionCount - curRight;
-        if (isRLERight) {
-          double res =
-              transform(value, rightTransformer.getType().getDouble(rightPatternColumn, 0));
-          for (int i = 0; i < length; i++) {
-            returnType.writeDouble(builder, res);
-          }
-          index += length;
-          curRight += length;
+    ((RLEColumn) rightColumn).print();
+    double value = leftTransformer.getType().getDouble(leftColumn, 0);
+    while (index < positionCount) {
+      if (curRight == curRightPositionCount) {
+        /** current rightPattern has reached end */
+        if (rightIndex + 1 < rightPatternCount) {
+          /** read next rlePattern */
+          curRight = 0;
+          rightIndex++;
+          rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
+          curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
         } else {
-          for (int i = 0; i < length; i++, curRight++, index++) {
-            if (!rightPatternColumn.isNull(curRight)) {
-              returnType.writeDouble(
-                  builder,
-                  transform(
-                      value, rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
-            } else {
-              builder.appendNull();
-            }
-          }
+          throw new RuntimeException(
+              "The positionCount of rightColumn is less than the requested positionCount");
         }
       }
-    } else {
-      while (index < positionCount) {
-        if (curRight == curRightPositionCount) {
-          /** current rightPattern has reached end */
-          if (rightIndex + 1 < rightPatternCount) {
-            /** read next rlePattern */
-            curRight = 0;
-            rightIndex++;
-            rightPatternColumn = ((RLEColumn) rightColumn).getColumn(rightIndex);
-            curRightPositionCount = ((RLEColumn) rightColumn).getLogicPositionCount(rightIndex);
-            isRLERight = rightPatternColumn.getPositionCount() == 1;
-          } else {
-            break;
-          }
+
+      length =
+          curRightPositionCount - curRight > positionCount - index
+              ? positionCount - index
+              : curRightPositionCount - curRight;
+      if (rightPatternColumn.getPositionCount() == 1) {
+        double res = transform(value, rightTransformer.getType().getDouble(rightPatternColumn, 0));
+        for (int i = 0; i < length; i++) {
+          returnType.writeDouble(builder, res);
         }
-        length =
-            curRightPositionCount - curRight > positionCount - index
-                ? positionCount - index
-                : curRightPositionCount - curRight;
-        if (isRLERight) {
-          double rightValue = rightTransformer.getType().getDouble(rightPatternColumn, 0);
-          for (int i = 0; i < length; i++, index++) {
-            if (!leftColumn.isNull(index)) {
-              returnType.writeDouble(
-                  builder,
-                  transform(leftTransformer.getType().getDouble(leftColumn, index), rightValue));
-            } else {
-              builder.appendNull();
-            }
-          }
-          curRight += length;
-        } else {
-          for (int i = 0; i < length; i++, curRight++, index++) {
-            if (!rightPatternColumn.isNull(curRight) && !leftColumn.isNull(index)) {
-              returnType.writeDouble(
-                  builder,
-                  transform(
-                      leftTransformer.getType().getDouble(leftColumn, index),
-                      rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
-            } else {
-              builder.appendNull();
-            }
+        index += length;
+        curRight += length;
+      } else {
+        for (int i = 0; i < length; i++, curRight++, index++) {
+          if (!rightPatternColumn.isNull(curRight)) {
+            returnType.writeDouble(
+                builder,
+                transform(
+                    value, rightTransformer.getType().getDouble(rightPatternColumn, curRight)));
+          } else {
+            builder.appendNull();
           }
         }
       }
@@ -361,11 +256,11 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
     if (leftColumn instanceof RLEColumn && rightColumn instanceof RLEColumn) {
       doTransformBetweenRLE(leftColumn, rightColumn, builder, positionCount);
       return;
-    } else if (leftColumn instanceof RLEColumn) {
-      doTransformWithLeftRLE(leftColumn, rightColumn, builder, positionCount);
+    } else if (leftColumn instanceof RLEColumn && rightColumn instanceof RunLengthEncodedColumn) {
+      doTransformWithLeftRLEandConstant(leftColumn, rightColumn, builder, positionCount);
       return;
-    } else if (rightColumn instanceof RLEColumn) {
-      doTransformWithRightRLE(leftColumn, rightColumn, builder, positionCount);
+    } else if (rightColumn instanceof RLEColumn && leftColumn instanceof RunLengthEncodedColumn) {
+      doTransformWithRightRLEandConstant(leftColumn, rightColumn, builder, positionCount);
       return;
     }
 

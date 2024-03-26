@@ -22,6 +22,8 @@ package org.apache.iotdb.db.queryengine.transformation.dag.column.unary;
 import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
 public class IsNullColumnTransformer extends UnaryColumnTransformer {
@@ -36,6 +38,34 @@ public class IsNullColumnTransformer extends UnaryColumnTransformer {
 
   @Override
   protected void doTransform(Column column, ColumnBuilder columnBuilder) {
+    if (column instanceof RLEColumn) {
+      RLEColumn rleColumn = (RLEColumn) column;
+      if (!(columnBuilder instanceof RLEColumnBuilder)) {
+        columnBuilder =
+            new RLEColumnBuilder(null, rleColumn.getPatternCount(), returnType.getTypeEnum());
+      }
+      for (int i = 0, n = rleColumn.getPatternCount(); i < n; i++) {
+        Column aColumn = rleColumn.getColumn(i);
+        int logicPositionCount = rleColumn.getLogicPositionCount(i);
+        if (aColumn.getPositionCount() == 1) {
+          ColumnBuilder columnBuilderTmp = returnType.createColumnBuilder(1);
+          if (!aColumn.isNull(0)) {
+            returnType.writeBoolean(columnBuilderTmp, aColumn.isNull(0) ^ isNot);
+          } else {
+            columnBuilderTmp.appendNull();
+          }
+
+          columnBuilder.writeColumn(columnBuilderTmp.build(), logicPositionCount);
+        } else {
+          ColumnBuilder columnBuilderTmp = returnType.createColumnBuilder(logicPositionCount);
+          for (int j = 0; j < logicPositionCount; j++) {
+            returnType.writeBoolean(columnBuilderTmp, aColumn.isNull(j) ^ isNot);
+          }
+          columnBuilder.writeColumn(columnBuilderTmp.build(), logicPositionCount);
+        }
+      }
+      return;
+    }
     for (int i = 0, n = column.getPositionCount(); i < n; i++) {
       returnType.writeBoolean(columnBuilder, column.isNull(i) ^ isNot);
     }

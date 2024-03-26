@@ -19,6 +19,7 @@
 
 package org.apache.iotdb.tsfile.read.reader.page;
 
+import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
 import org.apache.iotdb.tsfile.encoding.decoder.DictionaryDecoder;
 import org.apache.iotdb.tsfile.encoding.decoder.RleDecoder;
@@ -40,7 +41,7 @@ import org.apache.iotdb.tsfile.read.filter.factory.FilterFactory;
 import org.apache.iotdb.tsfile.read.reader.IPageReader;
 import org.apache.iotdb.tsfile.read.reader.series.PaginationController;
 import org.apache.iotdb.tsfile.utils.Binary;
-import org.apache.iotdb.tsfile.utils.Pair;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -54,6 +55,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilder;
+import static org.apache.iotdb.tsfile.read.reader.chunk.ChunkReader.uncompressPageData;
 import static org.apache.iotdb.tsfile.read.reader.series.PaginationController.UNLIMITED_PAGINATION_CONTROLLER;
 import static org.apache.iotdb.tsfile.utils.Preconditions.checkArgument;
 
@@ -70,6 +72,12 @@ public class PageReader implements IPageReader {
 
   /** decoder for time column */
   private final Decoder timeDecoder;
+
+  /** Uncompressor for compressedDataBuffer */
+  private IUnCompressor unCompressor;
+
+  /** Uncompressed data in memory */
+  private ByteBuffer compressedDataBuffer;
 
   /** time column in memory */
   private ByteBuffer timeBuffer;
@@ -112,6 +120,23 @@ public class PageReader implements IPageReader {
     this.recordFilter = recordFilter;
     this.pageHeader = pageHeader;
     splitDataToTimeStampAndValue(pageData);
+  }
+
+  public PageReader(
+      PageHeader pageHeader,
+      ByteBuffer compressedPageData,
+      TSDataType dataType,
+      IUnCompressor unCompressor,
+      Decoder valueDecoder,
+      Decoder timeDecoder,
+      Filter recordFilter) {
+    this.dataType = dataType;
+    this.valueDecoder = valueDecoder;
+    this.timeDecoder = timeDecoder;
+    this.recordFilter = recordFilter;
+    this.pageHeader = pageHeader;
+    this.unCompressor = unCompressor;
+    this.compressedDataBuffer = compressedPageData;
   }
 
   /**
@@ -182,9 +207,9 @@ public class PageReader implements IPageReader {
   }
 
   public TsBlock getAllSatisfiedDataToRLEColumn() throws IOException {
-    if (!(valueDecoder instanceof RleDecoder)) {
+    if (!(valueDecoder instanceof RleDecoder || valueDecoder instanceof DictionaryDecoder)) {
       throw new UnSupportedDataTypeException(
-          "only rle encoder supported, get decoder type: " + valueDecoder.getType());
+          "only rle / dictionary encoder supported, get decoder type: " + valueDecoder.getType());
     }
     TsBlockBuilder builder;
     int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();
@@ -206,9 +231,9 @@ public class PageReader implements IPageReader {
     while (timeDecoder.hasNext(timeBuffer)) {
 
       /** read a RlePattern Pair<Column column, int logicalPositionCount> */
-      Pair<Column, Integer> anRLEPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
-      int logicPositionCount = anRLEPattern.right.intValue();
-      Column valueColumn = anRLEPattern.getLeft();
+      RLEPattern anRLEPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+      int logicPositionCount = anRLEPattern.getLogicPositionCount();
+      Column valueColumn = anRLEPattern.getValue();
       boolean isNotRLE = valueColumn.getPositionCount() > 1;
 
       /** read coressponding timestamps and check if the timestamp is deleted. */
@@ -240,6 +265,7 @@ public class PageReader implements IPageReader {
       boolean end = false;
       ColumnBuilder valueColumnbuilder =
           contructColumnBuilder(Collections.singletonList(dataType))[0];
+      int retainedLogicalPositionCount = 0;
       for (i = 0; i < logicPositionCount; i++) {
         if (!valueSatisfy[i]) {
           continue;
@@ -252,6 +278,7 @@ public class PageReader implements IPageReader {
         if (paginationController.hasCurLimit()) {
           hasValueRetained = true;
           timeBuilder.writeLong(timestamps[i]);
+          retainedLogicalPositionCount++;
           if (isNotRLE) {
             valueColumnbuilder.writeObject(valueColumn.getObject(i));
           }
@@ -268,7 +295,7 @@ public class PageReader implements IPageReader {
         if (!isNotRLE) {
           valueColumnbuilder.writeObject(valueColumn.getObject(0));
         }
-        valueBuilder.writeColumn(valueColumnbuilder.build(), logicPositionCount);
+        valueBuilder.writeColumn(valueColumnbuilder.build(), retainedLogicalPositionCount);
       }
 
       /** if read reach the end, break */
@@ -281,6 +308,7 @@ public class PageReader implements IPageReader {
 
   @Override
   public TsBlock getAllSatisfiedData() throws IOException {
+    checkAndUncompressPageData();
     /** only direct computing for rle encoder supported. */
     if (valueDecoder instanceof RleDecoder || valueDecoder instanceof DictionaryDecoder) {
       return getAllSatisfiedDataToRLEColumn();
@@ -492,5 +520,13 @@ public class PageReader implements IPageReader {
       }
     }
     return false;
+  }
+
+  protected void checkAndUncompressPageData() throws IOException {
+    if (valueBuffer == null || timeBuffer == null) {
+      ByteBuffer PageData = uncompressPageData(pageHeader, unCompressor, compressedDataBuffer);
+      splitDataToTimeStampAndValue(PageData);
+      compressedDataBuffer.clear();
+    }
   }
 }

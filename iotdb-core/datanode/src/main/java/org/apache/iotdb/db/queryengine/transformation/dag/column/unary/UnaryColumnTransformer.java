@@ -24,8 +24,12 @@ import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public abstract class UnaryColumnTransformer extends ColumnTransformer {
   protected ColumnTransformer childColumnTransformer;
+  private static final Logger LOGGER = LoggerFactory.getLogger(UnaryColumnTransformer.class);
 
   protected UnaryColumnTransformer(Type returnType, ColumnTransformer childColumnTransformer) {
     super(returnType);

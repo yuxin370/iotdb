@@ -126,20 +126,21 @@ public class RLEColumnUnitTest {
   }
 
   public void testGetRegion(RLEColumn input) {
+    input = (RLEColumn) input.subColumn(15);
     RLEColumn getregion1 = (RLEColumn) input.getRegion(0, 20);
     for (int i = 0; i < 20; i++) {
       Assert.assertEquals(input.getObject(i), getregion1.getObject(i));
     }
-    RLEColumn getregion2 = (RLEColumn) input.getRegion(30, 70);
-    for (int i = 0, j = 30; i < 70; i++, j++) {
+    RLEColumn getregion2 = (RLEColumn) input.getRegion(30, 55);
+    for (int i = 0, j = 30; i < 55; i++, j++) {
       Assert.assertEquals(input.getObject(j), getregion2.getObject(i));
     }
     RLEColumn getregion3 = (RLEColumn) input.getRegion(13, 34);
     for (int i = 0, j = 13; i < 34; i++, j++) {
       Assert.assertEquals(input.getObject(j), getregion3.getObject(i));
     }
-    RLEColumn getregion4 = (RLEColumn) input.getRegion(53, 47);
-    for (int i = 0, j = 53; i < 47; i++, j++) {
+    RLEColumn getregion4 = (RLEColumn) input.getRegion(53, 32);
+    for (int i = 0, j = 53; i < 32; i++, j++) {
       Assert.assertEquals(input.getObject(j), getregion4.getObject(i));
     }
   }

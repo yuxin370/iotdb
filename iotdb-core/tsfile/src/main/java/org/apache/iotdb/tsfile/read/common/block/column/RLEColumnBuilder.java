@@ -21,7 +21,8 @@ package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.utils.Binary;
+import org.apache.iotdb.tsfile.read.common.type.TypeEnum;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 
 import org.openjdk.jol.info.ClassLayout;
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
   private boolean hasNonNullValue;
 
   // it is assumed that patternOffsetIndex.length = values.length + 1
-  private Column[] values = new Column[0];
+  private RLEPattern[] values = new RLEPattern[0];
   private int[] patternOffsetIndex =
       new int[] {
         0
@@ -66,6 +67,35 @@ public class RLEColumnBuilder implements ColumnBuilder {
     updateDataSize();
   }
 
+  public RLEColumnBuilder(
+      ColumnBuilderStatus columnBuilderStatus, int expectedEntries, TypeEnum type) {
+    this.columnBuilderStatus = columnBuilderStatus;
+    this.initialEntryCount = max(expectedEntries, 1);
+    switch (type) {
+      case INT32:
+        this.dataType = TSDataType.INT32;
+        break;
+      case INT64:
+        this.dataType = TSDataType.INT64;
+        break;
+      case FLOAT:
+        this.dataType = TSDataType.FLOAT;
+        break;
+      case DOUBLE:
+        this.dataType = TSDataType.DOUBLE;
+        break;
+      case BOOLEAN:
+        this.dataType = TSDataType.BOOLEAN;
+        break;
+      case BINARY:
+        this.dataType = TSDataType.TEXT;
+        break;
+      default:
+        throw new UnSupportedDataTypeException("RLEColumn builder do not support " + type);
+    }
+    updateDataSize();
+  }
+
   @Override
   public ColumnBuilder writeColumn(Column value, int logicPositionCount) {
     if (!value.getDataType().equals(dataType)) {
@@ -76,8 +106,8 @@ public class RLEColumnBuilder implements ColumnBuilder {
     if (values.length <= patternCount) {
       growCapacity();
     }
-
-    values[patternCount] = value;
+    RLEPattern pattern = new RLEPattern(value, logicPositionCount);
+    values[patternCount] = pattern;
     patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + logicPositionCount;
     hasNonNullValue = true;
     patternCount++;
@@ -104,44 +134,19 @@ public class RLEColumnBuilder implements ColumnBuilder {
       switch (getDataType()) {
         case INT32:
           return new RunLengthEncodedColumn(
-              new RLEColumn(
-                  1,
-                  1,
-                  new Column[] {new IntColumn(0, 1, new boolean[] {true}, new int[1])},
-                  new int[] {0}),
-              positionCount);
+              new IntColumn(0, 1, new boolean[] {true}, new int[1]), positionCount);
         case INT64:
           return new RunLengthEncodedColumn(
-              new RLEColumn(
-                  1,
-                  1,
-                  new Column[] {new LongColumn(0, 1, new boolean[] {true}, new long[1])},
-                  new int[] {0}),
-              positionCount);
+              new LongColumn(0, 1, new boolean[] {true}, new long[1]), positionCount);
         case FLOAT:
           return new RunLengthEncodedColumn(
-              new RLEColumn(
-                  1,
-                  1,
-                  new Column[] {new FloatColumn(0, 1, new boolean[] {true}, new float[1])},
-                  new int[] {0}),
-              positionCount);
+              new FloatColumn(0, 1, new boolean[] {true}, new float[1]), positionCount);
         case DOUBLE:
           return new RunLengthEncodedColumn(
-              new RLEColumn(
-                  1,
-                  1,
-                  new Column[] {new DoubleColumn(0, 1, new boolean[] {true}, new double[1])},
-                  new int[] {0}),
-              positionCount);
-        case TEXT:
+              new DoubleColumn(0, 1, new boolean[] {true}, new double[1]), positionCount);
+        case BOOLEAN:
           return new RunLengthEncodedColumn(
-              new RLEColumn(
-                  1,
-                  1,
-                  new Column[] {new BinaryColumn(0, 1, new boolean[] {true}, new Binary[1])},
-                  new int[] {0}),
-              positionCount);
+              new BooleanColumn(0, 1, new boolean[] {true}, new boolean[1]), positionCount);
         default:
           throw new UnSupportedDataTypeException(
               "Unsupported DataType for RLEColumn:" + getDataType());

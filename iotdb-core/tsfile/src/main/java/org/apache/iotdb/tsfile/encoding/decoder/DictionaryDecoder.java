@@ -23,9 +23,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 import org.apache.iotdb.tsfile.read.common.block.column.BinaryColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.BinaryColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.utils.Binary;
-import org.apache.iotdb.tsfile.utils.Pair;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -74,25 +73,25 @@ public class DictionaryDecoder extends Decoder {
   }
 
   @Override
-  public Pair<Column, Integer> readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
+  public RLEPattern readRLEPattern(ByteBuffer buffer, TSDataType dataType) {
     if (entryIndex == null) {
       initMap(buffer);
     }
-    Pair<Column, Integer> codes = valueDecoder.readRLEPattern(buffer, TSDataType.INT32);
-    int positionCount = codes.left.getPositionCount();
+    RLEPattern codes = valueDecoder.readRLEPattern(buffer, TSDataType.INT32);
+    int positionCount = codes.getValue().getPositionCount();
     if (positionCount == 1) {
       // rle
-      return new Pair<Column, Integer>(
+      return new RLEPattern(
           new BinaryColumn(
-              1, Optional.empty(), new Binary[] {entryIndex.get(codes.left.getInt(0))}),
-          codes.right);
+              1, Optional.empty(), new Binary[] {entryIndex.get(codes.getValue().getInt(0))}),
+          codes.getLogicPositionCount());
     } else {
       // bit-packed
       BinaryColumnBuilder builder = new BinaryColumnBuilder(null, positionCount);
       for (int i = 0; i < positionCount; i++) {
-        builder.writeBinary(entryIndex.get(codes.left.getInt(i)));
+        builder.writeBinary(entryIndex.get(codes.getValue().getInt(i)));
       }
-      return new Pair<Column, Integer>(builder.build(), codes.right);
+      return new RLEPattern(builder.build(), codes.getLogicPositionCount());
     }
   }
 

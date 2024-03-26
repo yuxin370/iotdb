@@ -51,9 +51,6 @@ public class IdentitySinkOperator implements Operator {
       List<Operator> children,
       DownStreamChannelIndex downStreamChannelIndex,
       ISinkHandle sinkHandle) {
-    for (int i = 0; i < children.size(); i++) {
-      LOGGER.info("[tyx] " + children.get(i).toString());
-    }
     this.operatorContext = operatorContext;
     this.children = children;
     this.downStreamChannelIndex = downStreamChannelIndex;
