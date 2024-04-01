@@ -27,6 +27,7 @@ import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 import org.apache.iotdb.tsfile.utils.BitMap;
+import org.apache.iotdb.tsfile.utils.Pair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,11 +171,11 @@ public class AvgAccumulator implements Accumulator {
 
   private void addIntInput(Column[] column, BitMap bitMap, int lastIndex) {
     if (column[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) column[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
@@ -226,15 +227,11 @@ public class AvgAccumulator implements Accumulator {
 
   private void addLongInput(Column[] column, BitMap bitMap, int lastIndex) {
     if (column[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) column[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      int patternCount = valueColumn.getPatternCount();
-
       while (curIndex <= lastIndex) {
-
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
-        int tp = curPatternLength;
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
@@ -287,11 +284,11 @@ public class AvgAccumulator implements Accumulator {
 
   private void addFloatInput(Column[] column, BitMap bitMap, int lastIndex) {
     if (column[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) column[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
@@ -343,11 +340,11 @@ public class AvgAccumulator implements Accumulator {
 
   private void addDoubleInput(Column[] column, BitMap bitMap, int lastIndex) {
     if (column[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) column[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength

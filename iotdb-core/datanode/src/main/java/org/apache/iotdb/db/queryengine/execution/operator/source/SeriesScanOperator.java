@@ -33,6 +33,7 @@ import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
+import org.apache.iotdb.tsfile.utils.Pair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,16 +164,18 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
     TimeColumn timeColumn = tsBlock.getTimeColumn();
     RLEColumnBuilder rlecolumnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(0);
 
+    Pair<Column[], int[]> patterns = column.getVisibleColumns();
+    Column[] columns = patterns.getLeft();
+    int[] logicPositionCounts = patterns.getRight();
     int rowFlag = 0;
 
-    for (int i = 0, size = column.getPatternCount(); i < size; i++) {
-      int patternLength = column.getLogicPositionCount(i);
-      rlecolumnBuilder.writeColumn(column.getColumn(i), patternLength);
-      resultTsBlockBuilder.declarePositions(patternLength);
-      for (int c = rowFlag; c < rowFlag + patternLength; c++) {
+    for (int i = 0, size = columns.length; i < size; i++) {
+      rlecolumnBuilder.writeRLEPattern(columns[i], logicPositionCounts[i]);
+      resultTsBlockBuilder.declarePositions(logicPositionCounts[i]);
+      for (int c = rowFlag; c < rowFlag + logicPositionCounts[i]; c++) {
         timeColumnBuilder.writeLong(timeColumn.getLong(c));
       }
-      rowFlag += patternLength;
+      rowFlag += logicPositionCounts[i];
     }
   }
 
@@ -199,7 +202,7 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
     } else if (columnBuilder instanceof RLEColumnBuilder) {
       TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
       TimeColumn timeColumn = tsBlock.getTimeColumn();
-      ((RLEColumnBuilder) columnBuilder).writeColumn(column, column.getPositionCount());
+      ((RLEColumnBuilder) columnBuilder).writeRLEPattern(column, column.getPositionCount());
       for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
         timeColumnBuilder.writeLong(timeColumn.getLong(i));
       }

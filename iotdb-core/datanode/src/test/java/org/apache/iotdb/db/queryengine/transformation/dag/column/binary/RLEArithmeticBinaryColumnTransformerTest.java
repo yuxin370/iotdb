@@ -89,8 +89,8 @@ public class RLEArithmeticBinaryColumnTransformerTest {
         new TsBlockBuilder(dataTypes, timeColumnBuilderTmp, valueColumnBuilderTmp);
 
     TimeColumnBuilder timeColumnBuilder = tsBlockBuilder.getTimeColumnBuilder();
-    ColumnBuilder leftColumnBuilder = tsBlockBuilder.getColumnBuilder(0);
-    ColumnBuilder rightColumnBuilder = tsBlockBuilder.getColumnBuilder(1);
+    RLEColumnBuilder leftColumnBuilder = (RLEColumnBuilder) tsBlockBuilder.getColumnBuilder(0);
+    RLEColumnBuilder rightColumnBuilder = (RLEColumnBuilder) tsBlockBuilder.getColumnBuilder(1);
 
     int index = 1;
     for (int j = 0; j < patternCount; j++) {
@@ -115,8 +115,8 @@ public class RLEArithmeticBinaryColumnTransformerTest {
         }
       }
 
-      (leftColumnBuilder).writeColumn(column, patternLength);
-      (rightColumnBuilder).writeColumn(column, patternLength);
+      (leftColumnBuilder).writeRLEPattern(column, patternLength);
+      (rightColumnBuilder).writeRLEPattern(column, patternLength);
       tsBlockBuilder.declarePositions(patternLength);
     }
     TsBlock tsBlock = tsBlockBuilder.build();

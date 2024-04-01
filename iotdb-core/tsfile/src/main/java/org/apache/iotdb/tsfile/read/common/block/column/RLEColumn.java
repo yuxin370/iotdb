@@ -21,7 +21,7 @@ package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.Binary;
-import org.apache.iotdb.tsfile.utils.RLEPattern;
+import org.apache.iotdb.tsfile.utils.Pair;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import org.openjdk.jol.info.ClassLayout;
@@ -39,83 +39,72 @@ public class RLEColumn implements Column {
 
   private static final int INSTANCE_SIZE = ClassLayout.parseClass(RLEColumn.class).instanceSize();
 
-  private final int arrayOffset; // offset of values Array
+  private int arrayOffset;
   private final int positionCount;
-  private int patternCount; // count of valid RlePatterns
-  private final RLEPattern[] values;
-  private final int[]
-      patternOffsetIndex; // patternOffsetIndex[i] refers to the offset of values[i].getObject(0) in
-  // all data
-  private int
-      curIndex; // Marking the latest read column index, which can effectively save traversal time
-  // when data is continuously read.
+  private final Column[] values;
+  // patternOffsetIndex[i] refers to the offset of values[i].getObject(0) in all data
+  private final int[] patternOffsetIndex;
+  // Marking the latest read column index, which can effectively save traversal time when data is
+  // continuously read.
+  private int curIndex;
 
-  public RLEColumn(
-      int positionCount, int patternCount, RLEPattern[] values, int[] patternOffsetIndex) {
-    this(0, positionCount, patternCount, values, patternOffsetIndex, 0);
+  public RLEColumn(int positionCount, Column[] values, int[] patternOffsetIndex) {
+    this(0, positionCount, values, patternOffsetIndex, 0);
   }
 
-  public RLEColumn(
-      int arrayOffset,
-      int positionCount,
-      int patternCount,
-      RLEPattern[] values,
-      int[] patternOffsetIndex) {
-    this(arrayOffset, positionCount, patternCount, values, patternOffsetIndex, 0);
+  public RLEColumn(int arrayOffset, int positionCount, Column[] values, int[] patternOffsetIndex) {
+    this(arrayOffset, positionCount, values, patternOffsetIndex, 0);
   }
 
   RLEColumn(
-      int arrayOffset,
-      int positionCount,
-      int patternCount,
-      RLEPattern[] values,
-      int[] patternOffsetIndex,
-      int curIndex) {
+      int arrayOffset, int positionCount, Column[] values, int[] patternOffsetIndex, int curIndex) {
     requireNonNull(values, "values is null");
+    requireNonNull(patternOffsetIndex, "patternOffsetIndex is null");
 
     if (arrayOffset < 0) {
       throw new IllegalArgumentException("arrayOffset is negative");
     }
     this.arrayOffset = arrayOffset;
+
     if (positionCount < 0) {
       throw new IllegalArgumentException("positionCount is negative");
     }
     this.positionCount = positionCount;
 
-    if (patternCount < 0) {
-      throw new IllegalArgumentException("patternCount is negative");
+    if (patternOffsetIndex.length != values.length + 1) {
+      throw new IllegalArgumentException(
+          "patternOffsetIndex length and values length do not match");
     }
-    this.patternCount = patternCount;
-
-    if (values.length - arrayOffset < patternCount) {
-      throw new IllegalArgumentException("values length is less than patternCount");
-    }
-
     this.values = values;
-
-    if (patternOffsetIndex != null && patternOffsetIndex.length - arrayOffset < patternCount) {
-      throw new IllegalArgumentException("patternOffsetIndex length is less than positionCount");
-    }
     this.patternOffsetIndex = patternOffsetIndex;
-
     this.curIndex = curIndex;
   }
 
   private int getCurIndex(int position) {
-    if (position >= positionCount) {
+    if (position > arrayOffset + positionCount) {
       throw new IllegalArgumentException(
-          " position: " + position + " out of the bound of positionCount: " + positionCount);
+          " position: "
+              + position
+              + " out of the bound of valid positions: "
+              + (arrayOffset + positionCount - 1));
+    } else if (position == arrayOffset + positionCount) {
+      int index;
+      for (index = curIndex;
+          index < patternOffsetIndex.length && patternOffsetIndex[index] == 0;
+          index++) ;
+      curIndex = index - 1;
+      return curIndex;
     }
     int index;
-    if (position >= getPatternOffsetIndex(curIndex)) {
+    if (position >= patternOffsetIndex[curIndex]) {
       /** check if curIndex hit */
-      if (position < getPatternOffsetIndex(curIndex + 1)) {
+      if (position < patternOffsetIndex[curIndex + 1]) {
         /** hit */
         return curIndex;
       } else {
         /** miss, traverse from curIndex + 1 and update curIndex */
         for (index = curIndex + 1;
-            index < this.patternCount && position >= getPatternOffsetIndex(index);
+            index < values.length && position >= patternOffsetIndex[index];
             index++) ;
         curIndex = index - 1;
         return curIndex;
@@ -123,102 +112,104 @@ public class RLEColumn implements Column {
     }
 
     /** miss, traverse from scratch and reset curIndex */
-    for (index = 0; index < this.patternCount && position >= getPatternOffsetIndex(index); index++)
-      ;
+    for (index = 0;
+        index < patternOffsetIndex.length && position >= patternOffsetIndex[index];
+        index++) ;
     curIndex = index - 1;
     return curIndex;
   }
 
   @Override
   public TSDataType getDataType() {
-    return (values[0]).getValue().getDataType();
+    return (values[0]).getDataType();
   }
 
   @Override
   public boolean getBoolean(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getBoolean(0)
-        : value.getBoolean(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getBoolean(0)
+        : values[curIndex].getBoolean(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public int getInt(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getInt(0)
-        : value.getInt(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getInt(0)
+        : values[curIndex].getInt(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public long getLong(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getLong(0)
-        : value.getLong(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getLong(0)
+        : values[curIndex].getLong(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public float getFloat(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getFloat(0)
-        : value.getFloat(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getFloat(0)
+        : values[curIndex].getFloat(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public double getDouble(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getDouble(0)
-        : value.getDouble(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getDouble(0)
+        : values[curIndex].getDouble(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public Binary getBinary(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getBinary(0)
-        : value.getBinary(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getBinary(0)
+        : values[curIndex].getBinary(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
-  @Override
-  public Column getColumn(int index) {
-    if (index < 0 || index >= patternCount) {
-      throw new IllegalArgumentException(
-          "getColumn index: " + index + " is illegal. where patternCount = " + patternCount);
+  public Pair<Column[], int[]> getVisibleColumns() {
+    int startIndex = getCurIndex(arrayOffset);
+    int endIndex = getCurIndex(arrayOffset + positionCount - 1);
+    Column[] visibleColumns = Arrays.copyOfRange(values, startIndex, endIndex + 1);
+    int[] logicPositionCount = new int[endIndex - startIndex + 1];
+    if (visibleColumns[endIndex - startIndex].getPositionCount() > 1) {
+      visibleColumns[endIndex - startIndex] =
+          visibleColumns[endIndex - startIndex].getRegion(
+              0, arrayOffset + positionCount - patternOffsetIndex[endIndex]);
     }
-    return values[arrayOffset + index].getValue();
+    if (visibleColumns[0].getPositionCount() > 1) {
+      visibleColumns[0] = visibleColumns[0].subColumn(arrayOffset - patternOffsetIndex[startIndex]);
+    }
+    for (int i = 0, idx = startIndex; idx <= endIndex; i++, idx++) {
+      logicPositionCount[i] = patternOffsetIndex[idx + 1] - patternOffsetIndex[idx];
+    }
+    return new Pair<Column[], int[]>(visibleColumns, logicPositionCount);
   }
 
   @Override
   public Object getObject(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getObject(0)
-        : value.getObject(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getObject(0)
+        : values[curIndex].getObject(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public boolean[] getBooleans() {
-    boolean[] res = new boolean[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    boolean[] res = new boolean[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(
-            res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getBoolean(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getBoolean(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getBoolean(j);
+          res[startIndex + j] = values[i].getBoolean(j);
         }
       }
     }
@@ -227,16 +218,15 @@ public class RLEColumn implements Column {
 
   @Override
   public int[] getInts() {
-    int[] res = new int[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    int[] res = new int[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getInt(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getInt(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getInt(j);
+          res[startIndex + j] = values[i].getInt(j);
         }
       }
     }
@@ -245,16 +235,15 @@ public class RLEColumn implements Column {
 
   @Override
   public long[] getLongs() {
-    long[] res = new long[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    long[] res = new long[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getLong(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getLong(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getLong(j);
+          res[startIndex + j] = values[i].getLong(j);
         }
       }
     }
@@ -263,16 +252,15 @@ public class RLEColumn implements Column {
 
   @Override
   public float[] getFloats() {
-    float[] res = new float[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    float[] res = new float[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getFloat(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getFloat(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getFloat(j);
+          res[startIndex + j] = values[i].getFloat(j);
         }
       }
     }
@@ -281,17 +269,15 @@ public class RLEColumn implements Column {
 
   @Override
   public double[] getDoubles() {
-    double[] res = new double[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    double[] res = new double[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(
-            res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getDouble(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getDouble(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getDouble(j);
+          res[startIndex + j] = values[i].getDouble(j);
         }
       }
     }
@@ -300,17 +286,15 @@ public class RLEColumn implements Column {
 
   @Override
   public Binary[] getBinaries() {
-    Binary[] res = new Binary[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    Binary[] res = new Binary[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(
-            res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getBinary(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getBinary(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getBinary(j);
+          res[startIndex + j] = values[i].getBinary(j);
         }
       }
     }
@@ -319,17 +303,15 @@ public class RLEColumn implements Column {
 
   @Override
   public Object[] getObjects() {
-    Object[] res = new Object[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    Object[] res = new Object[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(
-            res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.getObject(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].getObject(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.getObject(j);
+          res[startIndex + j] = values[i].getObject(j);
         }
       }
     }
@@ -343,17 +325,19 @@ public class RLEColumn implements Column {
 
   @Override
   public TsPrimitiveType getTsPrimitiveType(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.getTsPrimitiveType(0)
-        : value.getTsPrimitiveType(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].getTsPrimitiveType(0)
+        : values[curIndex].getTsPrimitiveType(
+            arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public boolean mayHaveNull() {
-    for (int i = 0; i < patternCount; i++) {
-      if (values[arrayOffset + i].getValue().mayHaveNull()) {
+    int startIndex = getCurIndex(arrayOffset);
+    int endIndex = getCurIndex(arrayOffset + positionCount - 1);
+    for (int i = startIndex; i <= endIndex; i++) {
+      if (values[i].mayHaveNull()) {
         return true;
       }
     }
@@ -362,32 +346,29 @@ public class RLEColumn implements Column {
 
   @Override
   public boolean isNull(int position) {
-    int curIndex = getCurIndex(position);
-    Column value = values[arrayOffset + curIndex].getValue();
-    return value.getPositionCount() == 1
-        ? value.isNull(0)
-        : value.isNull(position - getPatternOffsetIndex(curIndex));
+    int curIndex = getCurIndex(arrayOffset + position);
+    return values[curIndex].getPositionCount() == 1
+        ? values[curIndex].isNull(0)
+        : values[curIndex].isNull(arrayOffset + position - patternOffsetIndex[curIndex]);
   }
 
   @Override
   public boolean[] isNull() {
-    boolean[] res = new boolean[positionCount];
-    for (int i = 0; i < patternCount; i++) {
-      Column value = values[arrayOffset + i].getValue();
-      int curPatternActualPositionCount = value.getPositionCount();
+    boolean[] res = new boolean[patternOffsetIndex[values.length]];
+    for (int i = 0; i < values.length; i++) {
+      int curPatternActualPositionCount = values[i].getPositionCount();
       if (curPatternActualPositionCount == 1) {
-        Arrays.fill(res, getPatternOffsetIndex(i), getPatternOffsetIndex(i + 1), value.isNull(0));
+        Arrays.fill(res, patternOffsetIndex[i], patternOffsetIndex[i + 1], values[i].isNull(0));
       } else {
-        int startIndex = getPatternOffsetIndex(i);
+        int startIndex = patternOffsetIndex[i];
         for (int j = 0; j < curPatternActualPositionCount; j++) {
-          res[startIndex + j] = value.isNull(j);
+          res[startIndex + j] = values[i].isNull(j);
         }
       }
     }
     return res;
   }
 
-  /** get positionCount, which is the number of the RLEPatternColumn */
   @Override
   public int getPositionCount() {
     return positionCount;
@@ -396,109 +377,134 @@ public class RLEColumn implements Column {
   @Override
   public long getRetainedSizeInBytes() {
     long valuesRetainedSizeInBytes = 0;
-    for (int i = 0; i < patternCount; i++) {
-      valuesRetainedSizeInBytes += values[arrayOffset + i].getValue().getRetainedSizeInBytes();
+    int startIndex = getCurIndex(arrayOffset);
+    int endIndex = getCurIndex(arrayOffset + positionCount - 1);
+    for (int i = startIndex; i <= endIndex; i++) {
+      valuesRetainedSizeInBytes += values[i].getRetainedSizeInBytes();
     }
-    return INSTANCE_SIZE + sizeOfIntArray(patternCount + 1) + valuesRetainedSizeInBytes;
+    return INSTANCE_SIZE + sizeOfIntArray(endIndex - startIndex + 2) + valuesRetainedSizeInBytes;
   }
 
   @Override
   public Column getRegion(int positionOffset, int length) {
     checkValidRegion(positionCount, positionOffset, length);
-
-    int endPositionOffset = positionOffset + length - 1;
-    int startIndex = getCurIndex(positionOffset);
-    int endIndex = getCurIndex(endPositionOffset);
-
-    /*reconstruct the values  */
-    RLEPattern[] valuesTmp = new RLEPattern[values.length];
-    for (int i = 0; i < patternCount; i++) {
-      valuesTmp[arrayOffset + i] = values[arrayOffset + i].deepCopy();
-    }
-    int subFromOffset = positionOffset - getPatternOffsetIndex(startIndex);
-    int subToOffset = endPositionOffset - getPatternOffsetIndex(endIndex);
-    int[] patternOffsetIndexTmp = Arrays.copyOf(patternOffsetIndex, patternOffsetIndex.length);
-
-    if (startIndex == endIndex) {
-      valuesTmp[arrayOffset + endIndex].getRegion(subFromOffset, length);
-
-      patternOffsetIndexTmp[arrayOffset + endIndex] = 0;
-      patternOffsetIndexTmp[arrayOffset + endIndex + 1] = length;
-    } else {
-      valuesTmp[arrayOffset + startIndex].subColumn(subFromOffset);
-      valuesTmp[arrayOffset + endIndex].getRegion(0, subToOffset + 1);
-
-      patternOffsetIndexTmp[arrayOffset + startIndex] = 0;
-      for (int i = arrayOffset + startIndex + 1; i <= arrayOffset + endIndex; i++) {
-        patternOffsetIndexTmp[i] = patternOffsetIndexTmp[i] - positionOffset;
-      }
-      patternOffsetIndexTmp[arrayOffset + endIndex + 1] = length;
-    }
     return new RLEColumn(
-        arrayOffset + startIndex,
+        arrayOffset + positionOffset,
         length,
-        endIndex - startIndex + 1,
-        valuesTmp,
-        patternOffsetIndexTmp);
+        values,
+        patternOffsetIndex,
+        getCurIndex(arrayOffset + positionOffset));
+
+    // int endPositionOffset = positionOffset + length - 1;
+    // int startIndex = getCurIndex(positionOffset);
+    // int endIndex = getCurIndex(endPositionOffset);
+
+    // /*reconstruct the values  */
+    // RLEPattern[] valuesTmp = new RLEPattern[values.length];
+    // for (int i = 0; i < patternCount; i++) {
+    //   valuesTmp[arrayOffset + i] = values[arrayOffset + i].deepCopy();
+    // }
+    // int subFromOffset = positionOffset - patternOffsetIndex[startIndex];
+    // int subToOffset = endPositionOffset - patternOffsetIndex[endIndex];
+    // int[] patternOffsetIndexTmp = Arrays.copyOf(patternOffsetIndex, patternOffsetIndex.length);
+
+    // if (startIndex == endIndex) {
+    //   valuesTmp[arrayOffset + endIndex].getRegion(subFromOffset, length);
+
+    //   patternOffsetIndexTmp[arrayOffset + endIndex] = 0;
+    //   patternOffsetIndexTmp[arrayOffset + endIndex + 1] = length;
+    // } else {
+    //   valuesTmp[arrayOffset + startIndex].subColumn(subFromOffset);
+    //   valuesTmp[arrayOffset + endIndex].getRegion(0, subToOffset + 1);
+
+    //   patternOffsetIndexTmp[arrayOffset + startIndex] = 0;
+    //   for (int i = arrayOffset + startIndex + 1; i <= arrayOffset + endIndex; i++) {
+    //     patternOffsetIndexTmp[i] = patternOffsetIndexTmp[i] - positionOffset;
+    //   }
+    //   patternOffsetIndexTmp[arrayOffset + endIndex + 1] = length;
+    // }
+    // return new RLEColumn(
+    //     arrayOffset + startIndex,
+    //     length,
+    //     endIndex - startIndex + 1,
+    //     valuesTmp,
+    //     patternOffsetIndexTmp);
   }
 
   @Override
   public Column subColumn(int fromIndex) {
-    if (fromIndex == positionCount) {
-      return new RLEColumn(arrayOffset + patternCount, 0, 0, values, patternOffsetIndex);
+    if (fromIndex > positionCount) {
+      throw new IllegalArgumentException("fromIndex is not valid");
     }
+    return new RLEColumn(
+        arrayOffset + fromIndex,
+        positionCount - fromIndex,
+        values,
+        patternOffsetIndex,
+        getCurIndex(arrayOffset + fromIndex));
 
-    int curIndex = getCurIndex(fromIndex);
-    int curOffset = getPatternOffsetIndex(curIndex);
-    int[] patternOffsetIndexTmp = Arrays.copyOf(patternOffsetIndex, patternOffsetIndex.length);
+    // int curIndex = getCurIndex(fromIndex);
+    // int curOffset = patternOffsetIndex[curIndex];
+    // int[] patternOffsetIndexTmp = Arrays.copyOf(patternOffsetIndex, patternOffsetIndex.length);
 
-    if (curOffset == fromIndex) {
-      for (int i = arrayOffset + curIndex; i <= arrayOffset + patternCount; i++) {
-        patternOffsetIndexTmp[i] = patternOffsetIndexTmp[i] - curOffset;
-      }
-      return new RLEColumn(
-          arrayOffset + curIndex,
-          positionCount - fromIndex,
-          patternCount - curIndex,
-          values,
-          patternOffsetIndexTmp);
-    } else {
-      /*reconstruct the values  */
-      int subFromIndex = fromIndex - curOffset;
-      RLEPattern[] valuesTmp = new RLEPattern[values.length];
-      for (int i = 0; i < patternCount; i++) {
-        valuesTmp[arrayOffset + i] = values[arrayOffset + i].deepCopy();
-      }
-      valuesTmp[arrayOffset + curIndex].subColumn(subFromIndex);
+    // if (curOffset == fromIndex) {
+    //   for (int i = arrayOffset + curIndex; i <= arrayOffset + patternCount; i++) {
+    //     patternOffsetIndexTmp[i] = patternOffsetIndexTmp[i] - curOffset;
+    //   }
+    //   return new RLEColumn(
+    //       arrayOffset + curIndex,
+    //       positionCount - fromIndex,
+    //       patternCount - curIndex,
+    //       values,
+    //       patternOffsetIndexTmp);
+    // } else {
+    //   /*reconstruct the values  */
+    //   int subFromIndex = fromIndex - curOffset;
+    //   RLEPattern[] valuesTmp = new RLEPattern[values.length];
+    //   for (int i = 0; i < patternCount; i++) {
+    //     valuesTmp[arrayOffset + i] = values[arrayOffset + i].deepCopy();
+    //   }
+    //   valuesTmp[arrayOffset + curIndex].subColumn(subFromIndex);
 
-      patternOffsetIndexTmp[arrayOffset + curIndex] = 0;
-      for (int i = arrayOffset + curIndex + 1; i <= arrayOffset + patternCount; i++) {
-        patternOffsetIndexTmp[i] = patternOffsetIndexTmp[i] - fromIndex;
-      }
+    //   patternOffsetIndexTmp[arrayOffset + curIndex] = 0;
+    //   for (int i = arrayOffset + curIndex + 1; i <= arrayOffset + patternCount; i++) {
+    //     patternOffsetIndexTmp[i] = patternOffsetIndexTmp[i] - fromIndex;
+    //   }
 
-      return new RLEColumn(
-          arrayOffset + curIndex,
-          positionCount - fromIndex,
-          patternCount - curIndex,
-          valuesTmp,
-          patternOffsetIndexTmp);
-    }
+    //   return new RLEColumn(
+    //       arrayOffset + curIndex,
+    //       positionCount - fromIndex,
+    //       patternCount - curIndex,
+    //       valuesTmp,
+    //       patternOffsetIndexTmp);
+    // }
   }
 
   @Override
   public void reverse() {
-    for (int i = arrayOffset, j = arrayOffset + patternCount - 1; i < j; i++, j--) {
-      RLEPattern valueTmp = values[i];
+    int startIndex = getCurIndex(arrayOffset);
+    int endIndex = getCurIndex(arrayOffset + positionCount - 1);
+    int leftGap = arrayOffset - patternOffsetIndex[startIndex];
+    int rightGap = patternOffsetIndex[endIndex + 1] - (arrayOffset + positionCount);
+
+    for (int i = startIndex, j = endIndex; i < j; i++, j--) {
+      Column valueTmp = values[i];
       values[i] = values[j];
       values[j] = valueTmp;
-      values[i].reverseValue();
-      values[j].reverseValue();
+      values[i].reverse();
+      values[j].reverse();
     }
 
+    if ((startIndex + endIndex) % 2 == 0) {
+      values[(startIndex + endIndex) / 2].reverse();
+    }
+    arrayOffset = arrayOffset - leftGap + rightGap;
+
     // reverse patternOffsetIndex
-    patternOffsetIndex[arrayOffset] = 0;
-    for (int i = arrayOffset + 1, j = arrayOffset + patternCount; j > arrayOffset; i++, j--) {
-      patternOffsetIndex[i] = patternOffsetIndex[i - 1] + values[i - 1].getLogicPositionCount();
+    patternOffsetIndex[startIndex] = 0;
+    int[] patternOffsetIndexTmp = Arrays.copyOf(patternOffsetIndex, patternOffsetIndex.length);
+    for (int i = startIndex + 1, j = endIndex; i <= endIndex; i++, j--) {
+      patternOffsetIndex[i] = patternOffsetIndex[i - 1] + patternOffsetIndexTmp[j];
     }
   }
 
@@ -507,66 +513,31 @@ public class RLEColumn implements Column {
     return INSTANCE_SIZE;
   }
 
-  public int getPatternOffsetIndex(int index) {
-    return patternOffsetIndex[arrayOffset + index];
-  }
+  // public int getLogicPositionCount(int index) {
+  //   int startIndex = getCurIndex(arrayOffset);
+  //   int endIndex = getCurIndex(arrayOffset + positionCount -1);
 
-  public int getLogicPositionCount(int index) {
-    if (index < 0 || index >= patternCount) {
-      throw new IllegalArgumentException(
-          "getLogicPositionCount index: "
-              + index
-              + " is illegal. where patternCount = "
-              + patternCount);
-    }
-    return values[arrayOffset + index].getLogicPositionCount();
-  }
+  //   if (index < 0 || startIndex + index > endIndex) {
+  //     throw new IllegalArgumentException(
+  //         "getLogicPositionCount index: "
+  //             + index
+  //             + " is illegal. Only "
+  //             + (endIndex - startIndex + 1)
+  //             + "valid patterns");
+  //   }
 
-  public int getPatternCount() {
-    return patternCount;
-  }
+  //   if(startIndex == endIndex){
+  //     return positionCount;
+  //   }else if(index == 0){
+  //     return patternOffsetIndex[startIndex + 1] - arrayOffset;
+  //   }else if(index == endIndex){
+  //     return arrayOffset + positionCount - patternOffsetIndex[endIndex];
+  //   }else{
+  //     return patternOffsetIndex[startIndex + index + 1] - patternOffsetIndex[startIndex + index];
+  //   }
+  // }
 
-  public void print() {
-    LOGGER.info(
-        "-----------------------------[tyx print tsBlock start]-------------------------------");
-    LOGGER.info(
-        "arrayOffset = "
-            + arrayOffset
-            + "  postionCount = "
-            + positionCount
-            + "  patternCount = "
-            + patternCount);
-    for (int i = 0; i < patternCount; i++) {
-      if (values[arrayOffset + i].getValue().getPositionCount() == 1) {
-        LOGGER.info(
-            "pattern "
-                + i
-                + ": physical length= "
-                + values[arrayOffset + i].getValue().getPositionCount()
-                + "  logical Count= "
-                + values[arrayOffset + i].getLogicPositionCount()
-                + " offsetindex["
-                + i
-                + "]= "
-                + getPatternOffsetIndex(i)
-                + " value = "
-                + values[arrayOffset + i].getValue().getObject(0));
-      } else {
-        LOGGER.info(
-            "pattern "
-                + i
-                + ": physical length= "
-                + values[arrayOffset + i].getValue().getPositionCount()
-                + "  logical Count= "
-                + values[arrayOffset + i].getLogicPositionCount()
-                + " offsetindex["
-                + i
-                + "]= "
-                + getPatternOffsetIndex(i));
-      }
-    }
-    LOGGER.info("offsetindex[" + patternCount + "]= " + getPatternOffsetIndex(patternCount));
-    LOGGER.info(
-        "------------------------------[tyx print tsBlock end]--------------------------------");
-  }
+  // public int getPatternCount() {
+  //   return getCurIndex(arrayOffset + positionCount -1) - getCurIndex(arrayOffset) + 1;
+  // }
 }

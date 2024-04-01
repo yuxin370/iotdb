@@ -55,11 +55,6 @@ public interface ColumnBuilder {
     throw new UnsupportedOperationException(getClass().getName());
   }
 
-  /** Write the values of a Column to the current entry; */
-  default ColumnBuilder writeColumn(Column value, int logicPositionCount) {
-    throw new UnsupportedOperationException(getClass().getName());
-  }
-
   /** Write a TsPrimitiveType sequences to the current entry; */
   default ColumnBuilder writeTsPrimitiveType(TsPrimitiveType value) {
     throw new UnsupportedOperationException(getClass().getName());

@@ -295,7 +295,7 @@ public class PageReader implements IPageReader {
         if (!isNotRLE) {
           valueColumnbuilder.writeObject(valueColumn.getObject(0));
         }
-        valueBuilder.writeColumn(valueColumnbuilder.build(), retainedLogicalPositionCount);
+        valueBuilder.writeRLEPattern(valueColumnbuilder.build(), retainedLogicalPositionCount);
       }
 
       /** if read reach the end, break */

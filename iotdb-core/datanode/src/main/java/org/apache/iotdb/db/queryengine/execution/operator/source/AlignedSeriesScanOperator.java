@@ -33,6 +33,7 @@ import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
+import org.apache.iotdb.tsfile.utils.Pair;
 
 import java.io.IOException;
 import java.util.List;
@@ -193,11 +194,15 @@ public class AlignedSeriesScanOperator extends AbstractDataSourceOperator {
       resultTsBlockBuilder.buildValueColumnBuilders(
           new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
     }
-    RLEColumnBuilder rlecolumnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(columnIndex);
+    RLEColumnBuilder rlecolumnBuilder =
+        (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(columnIndex);
 
-    for (int i = 0, patternCount = column.getPatternCount(); i < patternCount; i++) {
-      int patternLength = column.getLogicPositionCount(i);
-      rlecolumnBuilder.writeColumn(column.getColumn(i), patternLength);
+    Pair<Column[], int[]> patterns = column.getVisibleColumns();
+    Column[] columns = patterns.getLeft();
+    int[] logicPositionCounts = patterns.getRight();
+
+    for (int i = 0, patternCount = columns.length; i < patternCount; i++) {
+      rlecolumnBuilder.writeRLEPattern(columns[i], logicPositionCounts[i]);
     }
   }
 
@@ -207,9 +212,9 @@ public class AlignedSeriesScanOperator extends AbstractDataSourceOperator {
     if ((column instanceof RLEColumn)
         && (columnBuilder instanceof RLEColumnBuilder
             || resultTsBlockBuilder.getPositionCount() == 0)) {
-      appendRLEToBuilder(columnIndex,tsBlock,size);
+      appendRLEToBuilder(columnIndex, tsBlock, size);
     } else if (columnBuilder instanceof RLEColumnBuilder) {
-      ((RLEColumnBuilder) columnBuilder).writeColumn(column, size);
+      ((RLEColumnBuilder) columnBuilder).writeRLEPattern(column, size);
     } else {
       if (column.mayHaveNull()) {
         for (int i = 0; i < size; i++) {

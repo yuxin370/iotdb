@@ -70,63 +70,14 @@ public class RLEColumnUnitTest {
 
     Assert.assertEquals(positionCount, output.getPositionCount());
     Assert.assertFalse(output.mayHaveNull());
-    Assert.assertEquals(expectedRetainedSize, output.getRetainedSizeInBytes());
+    long size = output.getRetainedSizeInBytes();
+    Assert.assertEquals(expectedRetainedSize, size);
     for (int i = 0; i < positionCount; i++) {
       Assert.assertEquals(input.getObject(i), output.getObject(i));
     }
   }
 
-  private boolean[] generateArrayBoolean(int positionCount) {
-    boolean[] bools = new boolean[positionCount];
-    for (int i = 0; i < positionCount; i++) {
-      bools[i] = i % 2 == 0 ? true : false;
-    }
-    return bools;
-  }
-
-  private int[] generateArrayInt(int positionCount) {
-    int[] ints = new int[positionCount];
-    for (int i = 0; i < positionCount; i++) {
-      ints[i] = ((int) (random() * 100));
-    }
-    return ints;
-  }
-
-  private long[] generateArrayLong(int positionCount) {
-    long[] longs = new long[positionCount];
-    for (int i = 0; i < positionCount; i++) {
-      longs[i] = (long) (random() * 100);
-    }
-    return longs;
-  }
-
-  private float[] generateArrayFloat(int positionCount) {
-    float[] floats = new float[positionCount];
-    for (int i = 0; i < positionCount; i++) {
-      floats[i] = (float) (random() * 100);
-    }
-    return floats;
-  }
-
-  private double[] generateArrayDouble(int positionCount) {
-    double[] doubles = new double[positionCount];
-    for (int i = 0; i < positionCount; i++) {
-      doubles[i] = ((double) random() * 100);
-    }
-    return doubles;
-  }
-
-  private Binary[] generateArrayBinary(int positionCount) {
-    Binary[] binarys = new Binary[positionCount];
-    for (int i = 0; i < positionCount; i++) {
-      binarys[i] =
-          new Binary(UUID.randomUUID().toString().substring(0, 5), TSFileConfig.STRING_CHARSET);
-    }
-    return binarys;
-  }
-
   public void testGetRegion(RLEColumn input) {
-    input = (RLEColumn) input.subColumn(15);
     RLEColumn getregion1 = (RLEColumn) input.getRegion(0, 20);
     for (int i = 0; i < 20; i++) {
       Assert.assertEquals(input.getObject(i), getregion1.getObject(i));
@@ -177,7 +128,7 @@ public class RLEColumnUnitTest {
             new BooleanColumn(
                 innnerPositionCount, Optional.empty(), generateArrayBoolean(innnerPositionCount));
       }
-      builder.writeColumn(column, innnerPositionCount);
+      builder.writeRLEPattern(column, innnerPositionCount);
     }
     RLEColumn input = (RLEColumn) builder.build();
     testInternalRLE(input);
@@ -200,7 +151,7 @@ public class RLEColumnUnitTest {
             new IntColumn(
                 innnerPositionCount, Optional.empty(), generateArrayInt(innnerPositionCount));
       }
-      builder.writeColumn(column, innnerPositionCount);
+      builder.writeRLEPattern(column, innnerPositionCount);
     }
     RLEColumn input = (RLEColumn) builder.build();
     testInternalRLE(input);
@@ -223,7 +174,7 @@ public class RLEColumnUnitTest {
             new LongColumn(
                 innnerPositionCount, Optional.empty(), generateArrayLong(innnerPositionCount));
       }
-      builder.writeColumn(column, innnerPositionCount);
+      builder.writeRLEPattern(column, innnerPositionCount);
     }
     RLEColumn input = (RLEColumn) builder.build();
     testInternalRLE(input);
@@ -246,7 +197,7 @@ public class RLEColumnUnitTest {
             new FloatColumn(
                 innnerPositionCount, Optional.empty(), generateArrayFloat(innnerPositionCount));
       }
-      builder.writeColumn(column, innnerPositionCount);
+      builder.writeRLEPattern(column, innnerPositionCount);
     }
     RLEColumn input = (RLEColumn) builder.build();
     testInternalRLE(input);
@@ -269,7 +220,7 @@ public class RLEColumnUnitTest {
             new DoubleColumn(
                 innnerPositionCount, Optional.empty(), generateArrayDouble(innnerPositionCount));
       }
-      builder.writeColumn(column, innnerPositionCount);
+      builder.writeRLEPattern(column, innnerPositionCount);
     }
     RLEColumn input = (RLEColumn) builder.build();
     testInternalRLE(input);
@@ -294,11 +245,61 @@ public class RLEColumnUnitTest {
             new BinaryColumn(
                 innnerPositionCount, Optional.empty(), generateArrayBinary(innnerPositionCount));
       }
-      builder.writeColumn(column, innnerPositionCount);
+      builder.writeRLEPattern(column, innnerPositionCount);
     }
     RLEColumn input = (RLEColumn) builder.build();
     testInternalRLE(input);
     testSubColumn(input);
     testGetRegion(input);
+  }
+
+  private boolean[] generateArrayBoolean(int positionCount) {
+    boolean[] bools = new boolean[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      bools[i] = i % 2 == 0 ? true : false;
+    }
+    return bools;
+  }
+
+  private int[] generateArrayInt(int positionCount) {
+    int[] ints = new int[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      // ints[i] = ((int) (random() * 100));
+      ints[i] = ((int) i);
+    }
+    return ints;
+  }
+
+  private long[] generateArrayLong(int positionCount) {
+    long[] longs = new long[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      longs[i] = (long) (random() * 100);
+    }
+    return longs;
+  }
+
+  private float[] generateArrayFloat(int positionCount) {
+    float[] floats = new float[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      floats[i] = (float) (random() * 100);
+    }
+    return floats;
+  }
+
+  private double[] generateArrayDouble(int positionCount) {
+    double[] doubles = new double[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      doubles[i] = ((double) random() * 100);
+    }
+    return doubles;
+  }
+
+  private Binary[] generateArrayBinary(int positionCount) {
+    Binary[] binarys = new Binary[positionCount];
+    for (int i = 0; i < positionCount; i++) {
+      binarys[i] =
+          new Binary(UUID.randomUUID().toString().substring(0, 5), TSFileConfig.STRING_CHARSET);
+    }
+    return binarys;
   }
 }

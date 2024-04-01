@@ -28,12 +28,18 @@ import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
 import org.apache.iotdb.tsfile.utils.Binary;
 import org.apache.iotdb.tsfile.utils.BitMap;
 import org.apache.iotdb.tsfile.utils.BytesUtils;
+import org.apache.iotdb.tsfile.utils.Pair;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class VarianceAccumulator implements Accumulator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(VarianceAccumulator.class);
+
   public enum VarianceType {
     STDDEV_POP,
     STDDEV_SAMP,
@@ -214,11 +220,11 @@ public class VarianceAccumulator implements Accumulator {
 
   private void addIntInput(Column[] columns, BitMap bitmap, int lastIndex) {
     if (columns[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) columns[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
@@ -276,15 +282,23 @@ public class VarianceAccumulator implements Accumulator {
 
   private void addLongInput(Column[] columns, BitMap bitmap, int lastIndex) {
     if (columns[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) columns[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
                 : lastIndex - curIndex + 1;
+        // LOGGER.info(
+        //     "[tyx] variance addLong input ["
+        //         + i
+        //         + "] curPattern.physicalpositioncount = "
+        //         + curPattern.getPositionCount()
+        //         + " logicpositioncount = "
+        //         + curPatternLength
+        //         + "\n");
         if (curPattern.getPositionCount() == 1) {
           int validCount = 0;
           if ((bitmap == null || bitmap.getRegion(curIndex, curPatternLength).isAllMarked())) {
@@ -338,11 +352,11 @@ public class VarianceAccumulator implements Accumulator {
 
   private void addFloatInput(Column[] columns, BitMap bitmap, int lastIndex) {
     if (columns[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) columns[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
@@ -401,11 +415,11 @@ public class VarianceAccumulator implements Accumulator {
 
   private void addDoubleInput(Column[] columns, BitMap bitmap, int lastIndex) {
     if (columns[1] instanceof RLEColumn) {
-      RLEColumn valueColumn = (RLEColumn) columns[1];
+      Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
       while (curIndex <= lastIndex) {
-        Column curPattern = valueColumn.getColumn(i);
-        int curPatternLength = valueColumn.getLogicPositionCount(i);
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
         curPatternLength =
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength

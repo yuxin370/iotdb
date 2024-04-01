@@ -22,7 +22,6 @@ package org.apache.iotdb.tsfile.read.common.block.column;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.type.TypeEnum;
-import org.apache.iotdb.tsfile.utils.RLEPattern;
 
 import org.openjdk.jol.info.ClassLayout;
 import org.slf4j.Logger;
@@ -50,7 +49,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
   private boolean hasNonNullValue;
 
   // it is assumed that patternOffsetIndex.length = values.length + 1
-  private RLEPattern[] values = new RLEPattern[0];
+  private Column[] values = new Column[0];
   private int[] patternOffsetIndex =
       new int[] {
         0
@@ -96,8 +95,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
     updateDataSize();
   }
 
-  @Override
-  public ColumnBuilder writeColumn(Column value, int logicPositionCount) {
+  public RLEColumnBuilder writeRLEPattern(Column value, int logicPositionCount) {
     if (!value.getDataType().equals(dataType)) {
       throw new UnSupportedDataTypeException(
           " only " + dataType + " supported, but get " + value.getDataType());
@@ -106,8 +104,8 @@ public class RLEColumnBuilder implements ColumnBuilder {
     if (values.length <= patternCount) {
       growCapacity();
     }
-    RLEPattern pattern = new RLEPattern(value, logicPositionCount);
-    values[patternCount] = pattern;
+
+    values[patternCount] = value;
     patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + logicPositionCount;
     hasNonNullValue = true;
     patternCount++;
@@ -120,7 +118,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    return writeColumn(column.getColumn(index), ((RLEColumn) column).getLogicPositionCount(index));
+    throw new UnsupportedOperationException(getClass().getName());
   }
 
   @Override
@@ -152,7 +150,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
               "Unsupported DataType for RLEColumn:" + getDataType());
       }
     }
-    return new RLEColumn(positionCount, patternCount, values, patternOffsetIndex);
+    return new RLEColumn(positionCount, values, patternOffsetIndex);
   }
 
   @Override

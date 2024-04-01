@@ -61,11 +61,6 @@ public interface Column {
     throw new UnsupportedOperationException(getClass().getName());
   }
 
-  /** Gets a Column at {@code index}. */
-  default Column getColumn(int index) {
-    throw new UnsupportedOperationException(getClass().getName());
-  }
-
   /** Gets an Object at {@code position}. */
   default Object getObject(int position) {
     throw new UnsupportedOperationException(getClass().getName());

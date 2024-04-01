@@ -20,7 +20,7 @@
 package org.apache.iotdb.tsfile.read.common.block.column;
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.utils.RLEPattern;
+import org.apache.iotdb.tsfile.utils.Pair;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -32,13 +32,11 @@ public class RLEColumnEncoder implements ColumnEncoder {
   public Column readColumn(ByteBuffer input, TSDataType dataType, int positionCount) {
     // Serialized data layout:
     //
-    // +----------+---------------+--------------+-------------------------+--------------------------+
-    // | encoding | pattern count | offset index | physical positionCounts | serialized inner
-    // columns |
-    // +----------+---------------+--------------+-------------------------+--------------------------+
-    // | byte     | int           | list[int]    |  list[int]              | list[bytes]
-    //  |
-    // +----------+---------------+--------------+-------------------------+--------------------------+
+    // +---------+--------------+-------------+------------------------+-------------------------+
+    // |encoding |pattern count |offset index |physical positionCounts |serialized inner columns |
+    // +---------+--------------+-------------+------------------------+-------------------------+
+    // |byte     |int           |list[int]    |list[int]               |list[bytes]              |
+    // +---------+--------------+-------------+------------------------+-------------------------+
     ColumnEncoder columnEncoder = ColumnEncoderFactory.get(ColumnEncoding.deserializeFrom(input));
     int patternCount = input.getInt();
     int[] patternOffsetIndex = new int[patternCount + 1];
@@ -51,16 +49,12 @@ public class RLEColumnEncoder implements ColumnEncoder {
       physicalPositionCount[i] = input.getInt();
     }
 
-    RLEPattern[] values = new RLEPattern[patternCount];
+    Column[] values = new Column[patternCount];
     for (int i = 0; i < patternCount; i++) {
-      RLEPattern tmp =
-          new RLEPattern(
-              columnEncoder.readColumn(input, dataType, physicalPositionCount[i]),
-              patternOffsetIndex[i + 1] - patternOffsetIndex[i]);
-      values[i] = tmp;
+      values[i] = columnEncoder.readColumn(input, dataType, physicalPositionCount[i]);
     }
 
-    return new RLEColumn(positionCount, patternCount, values, patternOffsetIndex);
+    return new RLEColumn(positionCount, values, patternOffsetIndex);
   }
 
   @Override
@@ -69,21 +63,33 @@ public class RLEColumnEncoder implements ColumnEncoder {
       throw new IllegalArgumentException("Unable to write column that not a RLEColumn");
     }
 
-    RLEColumn RleColumn = (RLEColumn) column;
-    int patternCount = RleColumn.getPatternCount();
+    Pair<Column[], int[]> rlePatterns = ((RLEColumn) column).getVisibleColumns();
+    Column[] columns = rlePatterns.getLeft();
+    int[] logicPositionCounts = rlePatterns.getRight();
+    int patternCount = columns.length;
 
-    RleColumn.getColumn(0).getEncoding().serializeTo(output);
+    // serialize encoding
+    columns[0].getEncoding().serializeTo(output);
+
+    // serialize patternCount
     output.writeInt(patternCount);
-    for (int i = 1; i <= patternCount; i++) {
-      output.writeInt(RleColumn.getPatternOffsetIndex(i));
-    }
+
+    // reconstruct and serialize patternOffsetIndex
+    int curOffset = 0;
     for (int i = 0; i < patternCount; i++) {
-      output.writeInt(RleColumn.getColumn(i).getPositionCount());
+      curOffset += logicPositionCounts[i];
+      output.writeInt(curOffset);
     }
 
-    ColumnEncoder columnEncoder = ColumnEncoderFactory.get(RleColumn.getColumn(0).getEncoding());
+    // serialize physical positioncount
     for (int i = 0; i < patternCount; i++) {
-      columnEncoder.writeColumn(output, RleColumn.getColumn(i));
+      output.writeInt(columns[i].getPositionCount());
+    }
+
+    // serialize inner columns
+    ColumnEncoder columnEncoder = ColumnEncoderFactory.get(columns[0].getEncoding());
+    for (int i = 0; i < patternCount; i++) {
+      columnEncoder.writeColumn(output, columns[i]);
     }
   }
 }

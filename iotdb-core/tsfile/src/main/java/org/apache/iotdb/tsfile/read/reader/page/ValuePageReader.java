@@ -20,8 +20,6 @@
 package org.apache.iotdb.tsfile.read.reader.page;
 
 import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
-import org.apache.iotdb.tsfile.encoding.decoder.DictionaryDecoder;
-import org.apache.iotdb.tsfile.encoding.decoder.RleDecoder;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.header.PageHeader;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -29,22 +27,16 @@ import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.BatchData;
 import org.apache.iotdb.tsfile.read.common.BatchDataFactory;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
-import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.utils.Binary;
-import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-
-import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilder;
 
 public class ValuePageReader {
 
@@ -398,16 +390,17 @@ public class ValuePageReader {
     }
   }
 
-  // public void writeColumnBuilderWithNextRLEBatch(int readStartIndex, int readEndIndex, ColumnBuilder columnBuilder){
+  // public void writeColumnBuilderWithNextRLEBatch(int readStartIndex, int readEndIndex,
+  // ColumnBuilder columnBuilder){
   //   if(!(columnBuilder instanceof RLEColumnBuilder)){
   //     columnBuilder = new RLEColumnBuilder(null, 1, columnBuilder.getDataType());
-  //   }    
+  //   }
   //   int skipCount = 0; // record how many values should be skipped.
   //   for (int i = 0; i < readStartIndex; i++) {
   //     if (((bitmap[i / 8] & 0xFF) & (MASK >>> (i % 8))) == 0) {
   //       continue;
   //     }
-  //     skipCount ++; 
+  //     skipCount ++;
   //   }
   //   RLEPattern aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
   //   int patternLength = aPattern.getLogicPositionCount();
@@ -423,15 +416,15 @@ public class ValuePageReader {
   //     }
   //   }
 
-
   //   int readIndex = readStartIndex ;
   //   while(readIndex < readEndIndex){
   //     valueColumn = aPattern.getValue();
   //     patternLength = aPattern.getLogicPositionCount();
-  //     int len = readIndex + patternLength - 1 < readEndIndex ? patternLength : readEndIndex - readIndex;
-  //     int got = 
+  //     int len = readIndex + patternLength - 1 < readEndIndex ? patternLength : readEndIndex -
+  // readIndex;
+  //     int got =
   //     if(valueColumn.getPositionCount() == 1){
-        
+
   //     }else{
   //       ColumnBuilder valueColumnbuilder =
   //         contructColumnBuilder(Collections.singletonList(dataType))[0];
@@ -439,14 +432,13 @@ public class ValuePageReader {
   //         if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
   //           columnBuilder.appendNull();
   //           continue;
-  //         }        
-          
+  //         }
+
   //       }
-      
+
   //     }
   //     aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
   //   }
-
 
   //   for (int i = readStartIndex; i < readEndIndex; i++) {
   //     if (((bitmap[i / 8] & 0xFF) & (MASK >>> (i % 8))) == 0) {

@@ -100,7 +100,7 @@ public class RLEAccumulatorTest {
         timeColumnBuilder.writeLong(index);
       }
 
-      (columnBuilders[0]).writeColumn(column, patternLength);
+      ((RLEColumnBuilder) columnBuilders[0]).writeRLEPattern(column, patternLength);
       tsBlockBuilder.declarePositions(patternLength);
     }
     rawData = tsBlockBuilder.build();
