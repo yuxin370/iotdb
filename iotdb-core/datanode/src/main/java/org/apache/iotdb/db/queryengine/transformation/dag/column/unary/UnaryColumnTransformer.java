@@ -22,6 +22,8 @@ package org.apache.iotdb.db.queryengine.transformation.dag.column.unary;
 import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
 import org.slf4j.Logger;
@@ -42,6 +44,10 @@ public abstract class UnaryColumnTransformer extends ColumnTransformer {
     childColumnTransformer.tryEvaluate();
     Column column = childColumnTransformer.getColumn();
     ColumnBuilder columnBuilder = returnType.createColumnBuilder(column.getPositionCount());
+
+    if (!(this instanceof InColumnTransformer) && column instanceof RLEColumn) {
+      columnBuilder = new RLEColumnBuilder(null, 1, returnType.getTypeEnum());
+    }
     doTransform(column, columnBuilder);
     initializeColumnCache(columnBuilder.build());
   }

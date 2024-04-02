@@ -44,9 +44,7 @@ public class IsNullColumnTransformer extends UnaryColumnTransformer {
       Column[] columns = rlePatterns.getLeft();
       int[] logicPositionCounts = rlePatterns.getRight();
       int patternCount = columns.length;
-      if (!(columnBuilder instanceof RLEColumnBuilder)) {
-        columnBuilder = new RLEColumnBuilder(null, patternCount, returnType.getTypeEnum());
-      }
+
       for (int i = 0, n = patternCount; i < n; i++) {
         if (columns[i].getPositionCount() == 1) {
           ColumnBuilder columnBuilderTmp = returnType.createColumnBuilder(1);

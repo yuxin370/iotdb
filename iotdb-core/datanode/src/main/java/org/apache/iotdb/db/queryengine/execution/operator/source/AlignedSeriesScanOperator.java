@@ -35,6 +35,9 @@ import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.iotdb.tsfile.utils.Pair;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder.MAX_LINE_NUMBER;
 
 public class AlignedSeriesScanOperator extends AbstractDataSourceOperator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SeriesScanOperator.class);
 
   private final int valueColumnCount;
   private boolean finished = false;

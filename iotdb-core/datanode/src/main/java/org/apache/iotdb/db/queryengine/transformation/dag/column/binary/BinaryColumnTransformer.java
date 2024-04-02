@@ -22,6 +22,9 @@ package org.apache.iotdb.db.queryengine.transformation.dag.column.binary;
 import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransformer;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RunLengthEncodedColumn;
 import org.apache.iotdb.tsfile.read.common.type.Type;
 
 import org.slf4j.Logger;
@@ -51,6 +54,13 @@ public abstract class BinaryColumnTransformer extends ColumnTransformer {
     Column rightColumn = rightTransformer.getColumn();
 
     ColumnBuilder builder = returnType.createColumnBuilder(positionCount);
+    if (!(this instanceof ArithmeticBinaryColumnTransformer)
+            && (leftColumn instanceof RLEColumn && rightColumn instanceof RLEColumn)
+        || (leftColumn instanceof RLEColumn && rightColumn instanceof RunLengthEncodedColumn)
+        || (leftColumn instanceof RunLengthEncodedColumn && rightColumn instanceof RLEColumn)) {
+      builder = new RLEColumnBuilder(null, 1, returnType.getTypeEnum());
+    }
+
     doTransform(leftColumn, rightColumn, builder, positionCount);
     initializeColumnCache(builder.build());
   }

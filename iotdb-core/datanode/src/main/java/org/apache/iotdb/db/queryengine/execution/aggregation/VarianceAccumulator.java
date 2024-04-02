@@ -291,14 +291,6 @@ public class VarianceAccumulator implements Accumulator {
             curIndex + curPatternLength - 1 <= lastIndex
                 ? curPatternLength
                 : lastIndex - curIndex + 1;
-        // LOGGER.info(
-        //     "[tyx] variance addLong input ["
-        //         + i
-        //         + "] curPattern.physicalpositioncount = "
-        //         + curPattern.getPositionCount()
-        //         + " logicpositioncount = "
-        //         + curPatternLength
-        //         + "\n");
         if (curPattern.getPositionCount() == 1) {
           int validCount = 0;
           if ((bitmap == null || bitmap.getRegion(curIndex, curPatternLength).isAllMarked())) {

@@ -53,6 +53,8 @@ public class RLEArithmeticBinaryColumnTransformerTest {
   private final double[] diviResult = new double[1000];
   private final double[] modResult = new double[1000];
   private final double[] subResult = new double[1000];
+  private final double[] leftInput = new double[1000];
+  private final double[] rightInput = new double[1000];
 
   private static IdentityColumnTransformer leftOperand;
 
@@ -107,9 +109,13 @@ public class RLEArithmeticBinaryColumnTransformerTest {
       for (int i = 0; i < patternLength; i++, index++) {
         timeColumnBuilder.writeLong(index);
         if (j % 3 != 0) {
+          leftInput[index - 1] = curIndex;
+          rightInput[index - 1] = curIndex;
           addResult[index - 1] = curIndex * 2.0;
           multiResult[index - 1] = curIndex * curIndex;
         } else {
+          leftInput[index - 1] = index;
+          rightInput[index - 1] = index;
           addResult[index - 1] = index * 2.0;
           multiResult[index - 1] = index * index;
         }
@@ -191,6 +197,84 @@ public class RLEArithmeticBinaryColumnTransformerTest {
     Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
     for (int i = 0; i < POSITION_COUNT; i++) {
       Assert.assertEquals(modResult[i], res.getDouble(i), 0.001);
+    }
+  }
+
+  @Test
+  public void testEqualTo() {
+    BinaryColumnTransformer transformer =
+        new CompareEqualToColumnTransformer(booleanType, leftOperand, rightOperand);
+    transformer.addReferenceCount();
+    transformer.evaluate();
+    Column res = transformer.getColumn();
+    Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
+    for (int i = 0; i < POSITION_COUNT; i++) {
+      Assert.assertEquals(leftInput[i] == rightInput[i], res.getBoolean(i));
+    }
+  }
+
+  @Test
+  public void testGreaterEqual() {
+    BinaryColumnTransformer transformer =
+        new CompareGreaterEqualColumnTransformer(booleanType, leftOperand, rightOperand);
+    transformer.addReferenceCount();
+    transformer.evaluate();
+    Column res = transformer.getColumn();
+    Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
+    for (int i = 0; i < POSITION_COUNT; i++) {
+      Assert.assertEquals(leftInput[i] >= rightInput[i], res.getBoolean(i));
+    }
+  }
+
+  @Test
+  public void testGreaterThan() {
+    BinaryColumnTransformer transformer =
+        new CompareGreaterThanColumnTransformer(booleanType, leftOperand, rightOperand);
+    transformer.addReferenceCount();
+    transformer.evaluate();
+    Column res = transformer.getColumn();
+    Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
+    for (int i = 0; i < POSITION_COUNT; i++) {
+      Assert.assertEquals(leftInput[i] > rightInput[i], res.getBoolean(i));
+    }
+  }
+
+  @Test
+  public void testLessEqual() {
+    BinaryColumnTransformer transformer =
+        new CompareLessEqualColumnTransformer(booleanType, leftOperand, rightOperand);
+    transformer.addReferenceCount();
+    transformer.evaluate();
+    Column res = transformer.getColumn();
+    Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
+    for (int i = 0; i < POSITION_COUNT; i++) {
+      Assert.assertEquals(leftInput[i] <= rightInput[i], res.getBoolean(i));
+    }
+  }
+
+  @Test
+  public void testLessThan() {
+    BinaryColumnTransformer transformer =
+        new CompareGreaterThanColumnTransformer(booleanType, leftOperand, rightOperand);
+    transformer.addReferenceCount();
+    transformer.evaluate();
+    Column res = transformer.getColumn();
+    Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
+    for (int i = 0; i < POSITION_COUNT; i++) {
+      Assert.assertEquals(leftInput[i] < rightInput[i], res.getBoolean(i));
+    }
+  }
+
+  @Test
+  public void testNonEqual() {
+    BinaryColumnTransformer transformer =
+        new CompareNonEqualColumnTransformer(booleanType, leftOperand, rightOperand);
+    transformer.addReferenceCount();
+    transformer.evaluate();
+    Column res = transformer.getColumn();
+    Assert.assertEquals(POSITION_COUNT, res.getPositionCount());
+    for (int i = 0; i < POSITION_COUNT; i++) {
+      Assert.assertEquals(leftInput[i] != rightInput[i], res.getBoolean(i));
     }
   }
 }
