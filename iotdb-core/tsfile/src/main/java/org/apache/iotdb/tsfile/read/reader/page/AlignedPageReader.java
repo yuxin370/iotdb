@@ -19,6 +19,7 @@
 
 package org.apache.iotdb.tsfile.read.reader.page;
 
+import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
 import org.apache.iotdb.tsfile.file.header.PageHeader;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -28,24 +29,35 @@ import org.apache.iotdb.tsfile.read.common.BatchDataFactory;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.read.reader.IPageReader;
 import org.apache.iotdb.tsfile.read.reader.IPointReader;
 import org.apache.iotdb.tsfile.read.reader.series.PaginationController;
+import org.apache.iotdb.tsfile.utils.Pair;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilders;
 import static org.apache.iotdb.tsfile.read.reader.series.PaginationController.UNLIMITED_PAGINATION_CONTROLLER;
 
 public class AlignedPageReader implements IPageReader {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AlignedPageReader.class);
 
   private final TimePageReader timePageReader;
   private final List<ValuePageReader> valuePageReaderList;
@@ -57,6 +69,7 @@ public class AlignedPageReader implements IPageReader {
 
   private boolean isModified;
   private TsBlockBuilder builder;
+  private List<IUnCompressor> valueUnCompressorList;
 
   private static final int MASK = 0x80;
 
@@ -79,6 +92,38 @@ public class AlignedPageReader implements IPageReader {
             new ValuePageReader(
                 valuePageHeaderList.get(i),
                 valuePageDataList.get(i),
+                valueDataTypeList.get(i),
+                valueDecoderList.get(i));
+        valuePageReaderList.add(valuePageReader);
+        isModified = isModified || valuePageReader.isModified();
+      } else {
+        valuePageReaderList.add(null);
+      }
+    }
+    this.globalTimeFilter = globalTimeFilter;
+    this.valueCount = valuePageReaderList.size();
+  }
+
+  public AlignedPageReader(
+      PageHeader timePageHeader,
+      ByteBuffer timePageData,
+      Decoder timeDecoder,
+      List<PageHeader> valuePageHeaderList,
+      List<ByteBuffer> valuePageDataList,
+      List<IUnCompressor> valueUnCompressorList,
+      List<TSDataType> valueDataTypeList,
+      List<Decoder> valueDecoderList,
+      Filter globalTimeFilter) {
+    timePageReader = new TimePageReader(timePageHeader, timePageData, timeDecoder);
+    isModified = timePageReader.isModified();
+    valuePageReaderList = new ArrayList<>(valuePageHeaderList.size());
+    for (int i = 0; i < valuePageHeaderList.size(); i++) {
+      if (valuePageHeaderList.get(i) != null) {
+        ValuePageReader valuePageReader =
+            new ValuePageReader(
+                valuePageHeaderList.get(i),
+                valuePageDataList.get(i),
+                valueUnCompressorList.get(i),
                 valueDataTypeList.get(i),
                 valueDecoderList.get(i));
         valuePageReaderList.add(valuePageReader);
@@ -212,7 +257,7 @@ public class AlignedPageReader implements IPageReader {
     return applyPushDownFilter();
   }
 
-  private void buildResultWithoutAnyFilterAndDelete(long[] timeBatch) {
+  private void buildResultWithoutAnyFilterAndDelete(long[] timeBatch) throws IOException {
     if (paginationController.hasCurOffset(timeBatch.length)) {
       paginationController.consumeOffset(timeBatch.length);
     } else {
@@ -241,8 +286,7 @@ public class AlignedPageReader implements IPageReader {
       for (int i = 0; i < valueCount; i++) {
         ValuePageReader pageReader = valuePageReaderList.get(i);
         if (pageReader != null) {
-          pageReader.writeColumnBuilderWithNextBatch(
-              readStartIndex, readEndIndex, builder.getColumnBuilder(i));
+          pageReader.writeColumnBuilderWithNextBatch(readStartIndex, readEndIndex, builder, i);
         } else {
           builder.getColumnBuilder(i).appendNull(readEndIndex - readStartIndex);
         }
@@ -311,20 +355,16 @@ public class AlignedPageReader implements IPageReader {
     return readEndIndex + 1;
   }
 
-  private void buildValueColumns(
-      int readEndIndex, boolean[] keepCurrentRow, boolean[][] isDeleted) {
+  private void buildValueColumns(int readEndIndex, boolean[] keepCurrentRow, boolean[][] isDeleted)
+      throws IOException {
     for (int i = 0; i < valueCount; i++) {
       ValuePageReader pageReader = valuePageReaderList.get(i);
       if (pageReader != null) {
         if (pageReader.isModified()) {
           pageReader.writeColumnBuilderWithNextBatch(
-              readEndIndex,
-              builder.getColumnBuilder(i),
-              keepCurrentRow,
-              Objects.requireNonNull(isDeleted)[i]);
+              readEndIndex, builder, i, keepCurrentRow, Objects.requireNonNull(isDeleted)[i]);
         } else {
-          pageReader.writeColumnBuilderWithNextBatch(
-              readEndIndex, builder.getColumnBuilder(i), keepCurrentRow);
+          pageReader.writeColumnBuilderWithNextBatch(readEndIndex, builder, i, keepCurrentRow);
         }
       } else {
         for (int j = 0; j < readEndIndex; j++) {
@@ -336,7 +376,8 @@ public class AlignedPageReader implements IPageReader {
     }
   }
 
-  private void fillIsDeletedAndBitMask(long[] timeBatch, boolean[][] isDeleted, byte[] bitmask) {
+  private void fillIsDeletedAndBitMask(long[] timeBatch, boolean[][] isDeleted, byte[] bitmask)
+      throws IOException {
     for (int columnIndex = 0; columnIndex < valueCount; columnIndex++) {
       ValuePageReader pageReader = valuePageReaderList.get(columnIndex);
       if (pageReader != null) {
@@ -397,14 +438,65 @@ public class AlignedPageReader implements IPageReader {
 
     // construct value columns
     for (int i = 0; i < valueCount; i++) {
-      for (int rowIndex = 0; rowIndex < readEndIndex; rowIndex++) {
-        if (keepCurrentRow[rowIndex]) {
-          if (unFilteredBlock.getValueColumns()[i].isNull(rowIndex)) {
-            builder.getColumnBuilder(i).appendNull();
+      Column valueColumn = unFilteredBlock.getValueColumns()[i];
+      ColumnBuilder columnBuilder = builder.getColumnBuilder(i);
+      if (columnBuilder instanceof RLEColumnBuilder) {
+        Pair<Column[], int[]> patterns = ((RLEColumn) valueColumn).getVisibleColumns();
+        Column[] columns = patterns.getLeft();
+        int[] logicPositionCounts = patterns.getRight();
+        int rowIndex = 0, pidx = 0;
+        while (rowIndex < readEndIndex) {
+          ColumnBuilder valueColumnBuilder =
+              contructColumnBuilders(Collections.singletonList(valueColumn.getDataType()))[0];
+          int valueCount = 0;
+          if (columns[pidx].getPositionCount() == 1) {
+            int len =
+                logicPositionCounts[pidx] > readEndIndex - rowIndex
+                    ? readEndIndex - rowIndex
+                    : logicPositionCounts[pidx];
+            if (keepCurrentRow[rowIndex]) {
+              /**
+               * when meet RLE pattern, keepCurrentRows[rowIndex:rowIndex+logicpositionCount] must
+               * be the same
+               */
+              valueCount = len;
+            } else {
+              valueCount = 0;
+            }
+            rowIndex += len;
+            if (columns[pidx].isNull(0)) {
+              valueColumnBuilder.appendNull();
+            } else {
+              valueColumnBuilder.writeObject(columns[pidx].getObject(0));
+            }
           } else {
-            builder
-                .getColumnBuilder(i)
-                .writeObject(unFilteredBlock.getValueColumns()[i].getObject(rowIndex));
+            for (int j = 0;
+                j < logicPositionCounts[pidx] && rowIndex < readEndIndex;
+                j++, rowIndex++) {
+              if (keepCurrentRow[rowIndex]) {
+                valueCount++;
+                if (columns[pidx].isNull(j)) {
+                  valueColumnBuilder.appendNull();
+                } else {
+                  valueColumnBuilder.writeObject(columns[pidx].getObject(j));
+                }
+              }
+            }
+          }
+          if (valueCount != 0) {
+            ((RLEColumnBuilder) columnBuilder)
+                .writeRLEPattern(valueColumnBuilder.build(), valueCount);
+          }
+          pidx++;
+        }
+      } else {
+        for (int rowIndex = 0; rowIndex < readEndIndex; rowIndex++) {
+          if (keepCurrentRow[rowIndex]) {
+            if (valueColumn.isNull(rowIndex)) {
+              columnBuilder.appendNull();
+            } else {
+              columnBuilder.writeObject(valueColumn.getObject(rowIndex));
+            }
           }
         }
       }

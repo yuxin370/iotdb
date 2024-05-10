@@ -24,6 +24,8 @@ import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.utils.Pair;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.DataOutputStream;
@@ -65,12 +67,38 @@ public abstract class ValueFilter extends Filter {
   public boolean[] satisfyTsBlock(TsBlock tsBlock) {
     Column valueColumn = tsBlock.getValueColumns()[measurementIndex];
     boolean[] satisfyInfo = new boolean[tsBlock.getPositionCount()];
-    for (int i = 0; i < tsBlock.getPositionCount(); i++) {
-      if (valueColumn.isNull(i)) {
-        // null not satisfy any filter, except IS NULL
-        satisfyInfo[i] = false;
-      } else {
-        satisfyInfo[i] = valueSatisfy(valueColumn.getObject(i));
+    if (valueColumn instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) valueColumn).getVisibleColumns();
+      Column[] columns = patterns.getLeft();
+      int[] logicPositionCounts = patterns.getRight();
+      int index = 0;
+      for (int i = 0, len = columns.length; i < len; i++) {
+        if (columns[i].getPositionCount() == 1) {
+          boolean res = false;
+          if (!columns[i].isNull(0)) {
+            res = valueSatisfy(columns[i].getObject(0));
+          }
+          Arrays.fill(satisfyInfo, index, index + logicPositionCounts[i], res);
+          index += logicPositionCounts[i];
+        } else {
+          for (int j = 0; j < logicPositionCounts[i]; j++, index++) {
+            if (columns[i].isNull(j)) {
+              // null not satisfy any filter, except IS NULL
+              satisfyInfo[index] = false;
+            } else {
+              satisfyInfo[index] = valueSatisfy(columns[i].getObject(j));
+            }
+          }
+        }
+      }
+    } else {
+      for (int i = 0; i < tsBlock.getPositionCount(); i++) {
+        if (valueColumn.isNull(i)) {
+          // null not satisfy any filter, except IS NULL
+          satisfyInfo[i] = false;
+        } else {
+          satisfyInfo[i] = valueSatisfy(valueColumn.getObject(i));
+        }
       }
     }
     return satisfyInfo;

@@ -19,7 +19,11 @@
 
 package org.apache.iotdb.tsfile.read.reader.page;
 
+import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
+import org.apache.iotdb.tsfile.encoding.decoder.DictionaryDecoder;
+import org.apache.iotdb.tsfile.encoding.decoder.FloatDecoder;
+import org.apache.iotdb.tsfile.encoding.decoder.RleDecoder;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.header.PageHeader;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -27,18 +31,31 @@ import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
 import org.apache.iotdb.tsfile.read.common.BatchData;
 import org.apache.iotdb.tsfile.read.common.BatchDataFactory;
 import org.apache.iotdb.tsfile.read.common.TimeRange;
+import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 import org.apache.iotdb.tsfile.utils.Binary;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
+import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilders;
+import static org.apache.iotdb.tsfile.read.reader.chunk.ChunkReader.uncompressPageData;
+
 public class ValuePageReader {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ValuePageReader.class);
 
   private static final int MASK = 0x80;
 
@@ -56,6 +73,11 @@ public class ValuePageReader {
   /** value column in memory */
   protected ByteBuffer valueBuffer;
 
+  /** compressed value in memory. if this buffer is not null, then value is not uncompressed */
+  protected ByteBuffer compressedValueBuffer;
+
+  protected IUnCompressor uncompressor;
+
   /** A list of deleted intervals. */
   private List<TimeRange> deleteIntervalList;
 
@@ -72,6 +94,30 @@ public class ValuePageReader {
     this.valueBuffer = pageData;
   }
 
+  public ValuePageReader(
+      PageHeader pageHeader,
+      ByteBuffer pageData,
+      IUnCompressor uncompressor,
+      TSDataType dataType,
+      Decoder valueDecoder) {
+    this.dataType = dataType;
+    this.valueDecoder = valueDecoder;
+    this.pageHeader = pageHeader;
+    this.uncompressor = uncompressor;
+    this.compressedValueBuffer = pageData;
+  }
+
+  private void checkAndUncompressPageData() throws IOException {
+    if (this.valueBuffer == null && this.compressedValueBuffer != null) {
+      ByteBuffer pageData = uncompressPageData(pageHeader, uncompressor, compressedValueBuffer);
+      if (pageData != null) {
+        splitDataToBitmapAndValue(pageData);
+      }
+      this.valueBuffer = pageData;
+      this.compressedValueBuffer = null;
+    }
+  }
+
   private void splitDataToBitmapAndValue(ByteBuffer pageData) {
     if (!pageData.hasRemaining()) { // Empty Page
       return;
@@ -86,7 +132,9 @@ public class ValuePageReader {
    * return a BatchData with the corresponding timeBatch, the BatchData's dataType is same as this
    * sub sensor
    */
-  public BatchData nextBatch(long[] timeBatch, boolean ascending, Filter filter) {
+  public BatchData nextBatch(long[] timeBatch, boolean ascending, Filter filter)
+      throws IOException {
+    checkAndUncompressPageData();
     BatchData pageData = BatchDataFactory.createBatchData(dataType, ascending, false);
     for (int i = 0; i < timeBatch.length; i++) {
       if (((bitmap[i / 8] & 0xFF) & (MASK >>> (i % 8))) == 0) {
@@ -137,7 +185,8 @@ public class ValuePageReader {
     return pageData.flip();
   }
 
-  public TsPrimitiveType nextValue(long timestamp, int timeIndex) {
+  public TsPrimitiveType nextValue(long timestamp, int timeIndex) throws IOException {
+    checkAndUncompressPageData();
     TsPrimitiveType resultValue = null;
     if (valueBuffer == null || ((bitmap[timeIndex / 8] & 0xFF) & (MASK >>> (timeIndex % 8))) == 0) {
       return null;
@@ -243,17 +292,118 @@ public class ValuePageReader {
     return valueBatch;
   }
 
-  public void writeColumnBuilderWithNextBatch(
+  public void writeColumnBuilderWithNextRLEBatch(
       int readEndIndex,
-      ColumnBuilder columnBuilder,
+      TsBlockBuilder builder,
+      int index,
       boolean[] keepCurrentRow,
       boolean[] isDeleted) {
+    if (!(builder.getColumnBuilder(index) instanceof RLEColumnBuilder)) {
+      int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();
+      builder.buildValueColumnBuilder(
+          index, new RLEColumnBuilder(null, initialExpectedEntries, dataType), dataType);
+    }
+    RLEColumnBuilder valueBuilder = (RLEColumnBuilder) builder.getColumnBuilder(index);
+
+    RLEPattern aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+    int readIndex = 0, patternLength = 0;
+    Column valueColumn;
+    while (readIndex < readEndIndex) {
+      valueColumn = aPattern.getValue();
+      patternLength = aPattern.getLogicPositionCount();
+      if (patternLength == 0) {
+        break;
+      }
+      ColumnBuilder valueColumnBuilder =
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
+      boolean cut = false;
+      int tmp = 0;
+      if (valueColumn.getPositionCount() == 1) {
+        for (int i = 0; i < patternLength && readIndex < readEndIndex; readIndex++) {
+          if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
+            valueColumnBuilder.appendNull();
+            cut = true;
+            tmp++;
+            continue;
+          }
+          if (keepCurrentRow[readIndex]) {
+            if (isDeleted[readIndex]) {
+              valueColumnBuilder.appendNull();
+            } else {
+              valueColumnBuilder.writeObject(valueColumn.getObject(0));
+            }
+            tmp++;
+          }
+          i++;
+        }
+      } else {
+        for (int i = 0; i < patternLength && readIndex < readEndIndex; readIndex++) {
+          if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
+            valueColumnBuilder.appendNull();
+            cut = true;
+            tmp++;
+            continue;
+          }
+          if (keepCurrentRow[readIndex]) {
+            if (isDeleted[readIndex]) {
+              valueColumnBuilder.appendNull();
+            } else {
+              valueColumnBuilder.writeObject(valueColumn.getObject(i));
+            }
+            tmp++;
+          }
+          i++;
+        }
+      }
+      if (cut) {
+        valueBuilder.writeRLEPattern(valueColumnBuilder.build(), tmp);
+      } else {
+        valueBuilder.writeRLEPattern(valueColumn, tmp);
+      }
+      aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+    }
+    if (readIndex < readEndIndex) {
+      ColumnBuilder valueColumnBuilder =
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
+      int allMask = 0xFF >>> (readIndex % 8);
+      int idx = readIndex / 8;
+      int endidx = (readEndIndex + 7) / 8;
+      if (((bitmap[idx] & 0xFF) & allMask) != 0) {
+        throw new RuntimeException(
+            "valueBuffer has been exhausted, while readIndex still not get end.");
+      }
+      for (; idx <= endidx; idx++) {
+        if ((bitmap[idx] & 0xFF) != 0) {
+          throw new RuntimeException(
+              "valueBuffer has been exhausted, while readIndex still not get end.");
+        }
+      }
+      valueColumnBuilder.appendNull();
+      valueBuilder.writeRLEPattern(valueColumnBuilder.build(), readEndIndex - readIndex);
+    }
+  }
+
+  public void writeColumnBuilderWithNextBatch(
+      int readEndIndex,
+      TsBlockBuilder builder,
+      int index,
+      boolean[] keepCurrentRow,
+      boolean[] isDeleted)
+      throws IOException {
+    checkAndUncompressPageData();
+    ColumnBuilder columnBuilder = builder.getColumnBuilder(index);
     if (valueBuffer == null) {
       for (int i = 0; i < readEndIndex; i++) {
         if (keepCurrentRow[i]) {
           columnBuilder.appendNull();
         }
       }
+      return;
+    }
+    if (valueDecoder instanceof RleDecoder
+        || valueDecoder instanceof DictionaryDecoder
+        || (valueDecoder instanceof FloatDecoder && ((FloatDecoder) valueDecoder).isRLEDecoder())) {
+      writeColumnBuilderWithNextRLEBatch(readEndIndex, builder, index, keepCurrentRow, isDeleted);
       return;
     }
     for (int i = 0; i < readEndIndex; i++) {
@@ -330,14 +480,103 @@ public class ValuePageReader {
     }
   }
 
+  public void writeColumnBuilderWithNextRLEBatch(
+      int readEndIndex, TsBlockBuilder builder, int index, boolean[] keepCurrentRow) {
+    if (!(builder.getColumnBuilder(index) instanceof RLEColumnBuilder)) {
+      int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();
+      builder.buildValueColumnBuilder(
+          index, new RLEColumnBuilder(null, initialExpectedEntries, dataType), dataType);
+    }
+    RLEColumnBuilder valueBuilder = (RLEColumnBuilder) builder.getColumnBuilder(index);
+
+    RLEPattern aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+    int readIndex = 0, patternLength = 0;
+    Column valueColumn;
+    while (readIndex < readEndIndex) {
+      valueColumn = aPattern.getValue();
+      patternLength = aPattern.getLogicPositionCount();
+      if (patternLength == 0) {
+        break;
+      }
+      ColumnBuilder valueColumnBuilder =
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
+      boolean cut = false;
+      int tmp = 0;
+      if (valueColumn.getPositionCount() == 1) {
+        for (int i = 0; i < patternLength && readIndex < readEndIndex; readIndex++) {
+          if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
+            valueColumnBuilder.appendNull();
+            cut = true;
+            tmp++;
+            continue;
+          }
+          if (keepCurrentRow[readIndex]) {
+            valueColumnBuilder.writeObject(valueColumn.getObject(0));
+            tmp++;
+          }
+          i++;
+        }
+      } else {
+        for (int i = 0; i < patternLength && readIndex < readEndIndex; readIndex++) {
+          if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
+            valueColumnBuilder.appendNull();
+            cut = true;
+            tmp++;
+            continue;
+          }
+          if (keepCurrentRow[readIndex]) {
+            valueColumnBuilder.writeObject(valueColumn.getObject(i));
+            tmp++;
+          }
+          i++;
+        }
+      }
+      if (cut) {
+        valueBuilder.writeRLEPattern(valueColumnBuilder.build(), tmp);
+      } else {
+        valueBuilder.writeRLEPattern(valueColumn, tmp);
+      }
+      aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+    }
+
+    if (readIndex < readEndIndex) {
+      ColumnBuilder valueColumnBuilder =
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
+      int allMask = 0xFF >>> (readIndex % 8);
+      int idx = readIndex / 8;
+      int endidx = (readEndIndex + 7) / 8;
+      if (((bitmap[idx] & 0xFF) & allMask) != 0) {
+        throw new RuntimeException(
+            "valueBuffer has been exhausted, while readIndex still not get end.");
+      }
+      for (; idx <= endidx; idx++) {
+        if ((bitmap[idx] & 0xFF) != 0) {
+          throw new RuntimeException(
+              "valueBuffer has been exhausted, while readIndex still not get end.");
+        }
+      }
+      valueColumnBuilder.appendNull();
+      valueBuilder.writeRLEPattern(valueColumnBuilder.build(), readEndIndex - readIndex);
+    }
+  }
+
   public void writeColumnBuilderWithNextBatch(
-      int readEndIndex, ColumnBuilder columnBuilder, boolean[] keepCurrentRow) {
+      int readEndIndex, TsBlockBuilder builder, int index, boolean[] keepCurrentRow)
+      throws IOException {
+    checkAndUncompressPageData();
+    ColumnBuilder columnBuilder = builder.getColumnBuilder(index);
     if (valueBuffer == null) {
       for (int i = 0; i < readEndIndex; i++) {
         if (keepCurrentRow[i]) {
           columnBuilder.appendNull();
         }
       }
+      return;
+    }
+    if (valueDecoder instanceof RleDecoder
+        || valueDecoder instanceof DictionaryDecoder
+        || (valueDecoder instanceof FloatDecoder && ((FloatDecoder) valueDecoder).isRLEDecoder())) {
+      writeColumnBuilderWithNextRLEBatch(readEndIndex, builder, index, keepCurrentRow);
       return;
     }
     for (int i = 0; i < readEndIndex; i++) {
@@ -390,77 +629,110 @@ public class ValuePageReader {
     }
   }
 
-  // public void writeColumnBuilderWithNextRLEBatch(int readStartIndex, int readEndIndex,
-  // ColumnBuilder columnBuilder){
-  //   if(!(columnBuilder instanceof RLEColumnBuilder)){
-  //     columnBuilder = new RLEColumnBuilder(null, 1, columnBuilder.getDataType());
-  //   }
-  //   int skipCount = 0; // record how many values should be skipped.
-  //   for (int i = 0; i < readStartIndex; i++) {
-  //     if (((bitmap[i / 8] & 0xFF) & (MASK >>> (i % 8))) == 0) {
-  //       continue;
-  //     }
-  //     skipCount ++;
-  //   }
-  //   RLEPattern aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
-  //   int patternLength = aPattern.getLogicPositionCount();
-  //   Column valueColumn;
-  //   while(skipCount > 0){
-  //     if(skipCount >= patternLength){
-  //       skipCount -= patternLength;
-  //       aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
-  //       patternLength = aPattern.getLogicPositionCount();
-  //     }else{
-  //       aPattern.subColumn(skipCount);
-  //       skipCount = 0;
-  //     }
-  //   }
+  public void writeColumnBuilderWithNextRLEBatch(
+      int readStartIndex, int readEndIndex, TsBlockBuilder builder, int index) {
+    if (!(builder.getColumnBuilder(index) instanceof RLEColumnBuilder)) {
+      int initialExpectedEntries = (int) pageHeader.getStatistics().getCount();
+      builder.buildValueColumnBuilder(
+          index, new RLEColumnBuilder(null, initialExpectedEntries, dataType), dataType);
+    }
+    RLEColumnBuilder valueBuilder = (RLEColumnBuilder) builder.getColumnBuilder(index);
+    int skipCount = 0; // record how many values should be skipped.
+    for (int i = 0; i < readStartIndex; i++) {
+      if (((bitmap[i / 8] & 0xFF) & (MASK >>> (i % 8))) == 0) {
+        continue;
+      }
+      skipCount++;
+    }
 
-  //   int readIndex = readStartIndex ;
-  //   while(readIndex < readEndIndex){
-  //     valueColumn = aPattern.getValue();
-  //     patternLength = aPattern.getLogicPositionCount();
-  //     int len = readIndex + patternLength - 1 < readEndIndex ? patternLength : readEndIndex -
-  // readIndex;
-  //     int got =
-  //     if(valueColumn.getPositionCount() == 1){
+    RLEPattern aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+    int patternLength = aPattern.getLogicPositionCount();
+    while (skipCount > 0) {
+      if (skipCount >= patternLength) {
+        skipCount -= patternLength;
+        aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+        patternLength = aPattern.getLogicPositionCount();
+      } else {
+        aPattern.subColumn(skipCount);
+        skipCount = 0;
+      }
+    }
+    int readIndex = readStartIndex;
+    Column valueColumn;
+    while (readIndex < readEndIndex) {
+      valueColumn = aPattern.getValue();
+      patternLength = aPattern.getLogicPositionCount();
+      if (patternLength == 0) {
+        break;
+      }
+      ColumnBuilder valueColumnBuilder =
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
+      boolean cut = false;
+      int tmp = readIndex;
+      if (valueColumn.getPositionCount() == 1) {
+        for (int i = 0; i < patternLength && readIndex < readEndIndex; readIndex++) {
+          if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
+            valueColumnBuilder.appendNull();
+            cut = true;
+            continue;
+          }
+          valueColumnBuilder.writeObject(valueColumn.getObject(0));
+          i++;
+        }
+      } else {
+        for (int i = 0; i < patternLength && readIndex < readEndIndex; readIndex++) {
+          if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
+            valueColumnBuilder.appendNull();
+            cut = true;
+            continue;
+          }
+          valueColumnBuilder.writeObject(valueColumn.getObject(i));
+          i++;
+        }
+      }
+      if (cut) {
+        valueBuilder.writeRLEPattern(valueColumnBuilder.build(), readIndex - tmp);
+      } else {
+        valueBuilder.writeRLEPattern(valueColumn, readIndex - tmp);
+      }
+      aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
+    }
 
-  //     }else{
-  //       ColumnBuilder valueColumnbuilder =
-  //         contructColumnBuilder(Collections.singletonList(dataType))[0];
-  //       for(int i = 0; i < len ; i ++ , readIndex ++){
-  //         if (((bitmap[readIndex / 8] & 0xFF) & (MASK >>> (readIndex % 8))) == 0) {
-  //           columnBuilder.appendNull();
-  //           continue;
-  //         }
-
-  //       }
-
-  //     }
-  //     aPattern = valueDecoder.readRLEPattern(valueBuffer, dataType);
-  //   }
-
-  //   for (int i = readStartIndex; i < readEndIndex; i++) {
-  //     if (((bitmap[i / 8] & 0xFF) & (MASK >>> (i % 8))) == 0) {
-  //       columnBuilder.appendNull();
-  //       continue;
-  //     }
-  //     boolean aBoolean = valueDecoder.readBoolean(valueBuffer);
-  //     columnBuilder.writeBoolean(aBoolean);
-  //   }
-
-  // }
+    if (readIndex < readEndIndex) {
+      ColumnBuilder valueColumnBuilder =
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
+      int allMask = 0xFF >>> (readIndex % 8);
+      int idx = readIndex / 8;
+      int endidx = (readEndIndex + 7) / 8;
+      if (((bitmap[idx] & 0xFF) & allMask) != 0) {
+        throw new RuntimeException(
+            "valueBuffer has been exhausted, while readIndex still not get end.");
+      }
+      for (; idx <= endidx; idx++) {
+        if ((bitmap[idx] & 0xFF) != 0) {
+          throw new RuntimeException(
+              "valueBuffer has been exhausted, while readIndex still not get end.");
+        }
+      }
+      valueColumnBuilder.appendNull();
+      valueBuilder.writeRLEPattern(valueColumnBuilder.build(), readEndIndex - readIndex);
+    }
+  }
 
   public void writeColumnBuilderWithNextBatch(
-      int readStartIndex, int readEndIndex, ColumnBuilder columnBuilder) {
+      int readStartIndex, int readEndIndex, TsBlockBuilder builder, int index) throws IOException {
+    checkAndUncompressPageData();
+    ColumnBuilder columnBuilder = builder.getColumnBuilder(index);
     if (valueBuffer == null) {
       columnBuilder.appendNull(readEndIndex - readStartIndex);
       return;
     }
-    // if(valueDecoder instanceof RleDecoder || valueDecoder instanceof DictionaryDecoder){
-    //   writeColumnBuilderWithNextRLEBatch(readStartIndex,readEndIndex,columnBuilder);
-    //   return;
-    // }
+    if (valueDecoder instanceof RleDecoder
+        || valueDecoder instanceof DictionaryDecoder
+        || (valueDecoder instanceof FloatDecoder && ((FloatDecoder) valueDecoder).isRLEDecoder())) {
+      writeColumnBuilderWithNextRLEBatch(readStartIndex, readEndIndex, builder, index);
+      return;
+    }
     switch (dataType) {
       case BOOLEAN:
         // skip useless data
@@ -614,7 +886,8 @@ public class ValuePageReader {
     return dataType;
   }
 
-  public byte[] getBitmap() {
+  public byte[] getBitmap() throws IOException {
+    checkAndUncompressPageData();
     return Arrays.copyOf(bitmap, bitmap.length);
   }
 }

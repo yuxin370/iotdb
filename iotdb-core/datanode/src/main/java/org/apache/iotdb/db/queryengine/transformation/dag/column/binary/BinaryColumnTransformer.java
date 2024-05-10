@@ -55,9 +55,10 @@ public abstract class BinaryColumnTransformer extends ColumnTransformer {
 
     ColumnBuilder builder = returnType.createColumnBuilder(positionCount);
     if (!(this instanceof ArithmeticBinaryColumnTransformer)
-            && (leftColumn instanceof RLEColumn && rightColumn instanceof RLEColumn)
-        || (leftColumn instanceof RLEColumn && rightColumn instanceof RunLengthEncodedColumn)
-        || (leftColumn instanceof RunLengthEncodedColumn && rightColumn instanceof RLEColumn)) {
+        && ((leftColumn instanceof RLEColumn && rightColumn instanceof RLEColumn)
+            || (leftColumn instanceof RLEColumn && rightColumn instanceof RunLengthEncodedColumn)
+            || (leftColumn instanceof RunLengthEncodedColumn
+                && rightColumn instanceof RLEColumn))) {
       builder = new RLEColumnBuilder(null, 1, returnType.getTypeEnum());
     }
 

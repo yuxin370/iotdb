@@ -196,7 +196,7 @@ public class AvgAccumulator implements Accumulator {
             }
           }
           countValue += validCount;
-          sumValue += curPattern.getLong(0) * validCount;
+          sumValue += curPattern.getInt(0) * validCount;
         } else {
           for (int j = 0; j < curPatternLength; j++, curIndex++) {
             if (bitMap != null && !bitMap.isMarked(curIndex)) {
@@ -205,7 +205,7 @@ public class AvgAccumulator implements Accumulator {
             if (!curPattern.isNull(j)) {
               initResult = true;
               countValue++;
-              sumValue += curPattern.getLong(j);
+              sumValue += curPattern.getInt(j);
             }
           }
         }

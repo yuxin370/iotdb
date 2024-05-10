@@ -32,6 +32,8 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -54,6 +56,7 @@ import static org.apache.iotdb.cli.utils.IoTPrinter.printRow;
 import static org.apache.iotdb.cli.utils.IoTPrinter.println;
 
 public abstract class AbstractCli {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCli.class);
 
   static final String HOST_ARGS = "h";
   static final String HOST_NAME = "host";

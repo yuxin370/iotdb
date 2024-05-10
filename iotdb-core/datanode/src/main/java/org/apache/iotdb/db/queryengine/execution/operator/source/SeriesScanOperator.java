@@ -156,14 +156,23 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
   private void appendRLEToBuilder(TsBlock tsBlock) {
     RLEColumn column = (RLEColumn) tsBlock.getColumn(0);
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
+    Column storeColumn = null;
     if (!(columnBuilder instanceof RLEColumnBuilder)) {
-      resultTsBlockBuilder.buildValueColumnBuilders(
-          new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
+      if (resultTsBlockBuilder.getPositionCount() == 0) {
+        resultTsBlockBuilder.buildValueColumnBuilders(
+            new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
+      } else {
+        storeColumn = columnBuilder.build();
+        resultTsBlockBuilder.buildValueColumnBuilders(
+            new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
+      }
     }
     TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
     TimeColumn timeColumn = tsBlock.getTimeColumn();
     RLEColumnBuilder rlecolumnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(0);
-
+    if (storeColumn != null) {
+      rlecolumnBuilder.writeRLEPattern(storeColumn, storeColumn.getPositionCount());
+    }
     Pair<Column[], int[]> patterns = column.getVisibleColumns();
     Column[] columns = patterns.getLeft();
     int[] logicPositionCounts = patterns.getRight();
@@ -195,9 +204,7 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
      */
     Column column = tsBlock.getColumn(0);
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
-    if ((column instanceof RLEColumn)
-        && (columnBuilder instanceof RLEColumnBuilder
-            || resultTsBlockBuilder.getPositionCount() == 0)) {
+    if ((column instanceof RLEColumn)) {
       appendRLEToBuilder(tsBlock);
     } else if (columnBuilder instanceof RLEColumnBuilder) {
       TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();

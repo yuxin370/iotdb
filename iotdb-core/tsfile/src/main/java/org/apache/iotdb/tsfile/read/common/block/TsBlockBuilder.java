@@ -239,6 +239,14 @@ public class TsBlockBuilder {
     this.types = tmpTypes;
   }
 
+  public void buildValueColumnBuilder(
+      int index, ColumnBuilder templateValueColumnBuilder, TSDataType dataType) {
+    valueColumnBuilders[index] =
+        templateValueColumnBuilder.newColumnBuilderLike(
+            tsBlockBuilderStatus.createColumnBuilderStatus());
+    this.types.set(index, dataType);
+  }
+
   public void reset() {
     if (isEmpty()) {
       return;

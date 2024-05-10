@@ -22,6 +22,7 @@ package org.apache.iotdb.tsfile.read.reader.page;
 import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
 import org.apache.iotdb.tsfile.encoding.decoder.DictionaryDecoder;
+import org.apache.iotdb.tsfile.encoding.decoder.FloatDecoder;
 import org.apache.iotdb.tsfile.encoding.decoder.RleDecoder;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.header.PageHeader;
@@ -54,7 +55,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilder;
+import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilders;
 import static org.apache.iotdb.tsfile.read.reader.chunk.ChunkReader.uncompressPageData;
 import static org.apache.iotdb.tsfile.read.reader.series.PaginationController.UNLIMITED_PAGINATION_CONTROLLER;
 import static org.apache.iotdb.tsfile.utils.Preconditions.checkArgument;
@@ -207,7 +208,10 @@ public class PageReader implements IPageReader {
   }
 
   public TsBlock getAllSatisfiedDataToRLEColumn() throws IOException {
-    if (!(valueDecoder instanceof RleDecoder || valueDecoder instanceof DictionaryDecoder)) {
+    if (!(valueDecoder instanceof RleDecoder
+        || valueDecoder instanceof DictionaryDecoder
+        || (valueDecoder instanceof FloatDecoder
+            && ((FloatDecoder) valueDecoder).isRLEDecoder()))) {
       throw new UnSupportedDataTypeException(
           "only rle / dictionary encoder supported, get decoder type: " + valueDecoder.getType());
     }
@@ -264,7 +268,7 @@ public class PageReader implements IPageReader {
       boolean hasValueRetained = false;
       boolean end = false;
       ColumnBuilder valueColumnbuilder =
-          contructColumnBuilder(Collections.singletonList(dataType))[0];
+          contructColumnBuilders(Collections.singletonList(dataType))[0];
       int retainedLogicalPositionCount = 0;
       for (i = 0; i < logicPositionCount; i++) {
         if (!valueSatisfy[i]) {
@@ -310,7 +314,9 @@ public class PageReader implements IPageReader {
   public TsBlock getAllSatisfiedData() throws IOException {
     checkAndUncompressPageData();
     /** only direct computing for rle encoder supported. */
-    if (valueDecoder instanceof RleDecoder || valueDecoder instanceof DictionaryDecoder) {
+    if (valueDecoder instanceof RleDecoder
+        || valueDecoder instanceof DictionaryDecoder
+        || (valueDecoder instanceof FloatDecoder && ((FloatDecoder) valueDecoder).isRLEDecoder())) {
       return getAllSatisfiedDataToRLEColumn();
     }
     TsBlockBuilder builder;
@@ -526,7 +532,7 @@ public class PageReader implements IPageReader {
     if (valueBuffer == null || timeBuffer == null) {
       ByteBuffer PageData = uncompressPageData(pageHeader, unCompressor, compressedDataBuffer);
       splitDataToTimeStampAndValue(PageData);
-      compressedDataBuffer.clear();
+      compressedDataBuffer = null;
     }
   }
 }

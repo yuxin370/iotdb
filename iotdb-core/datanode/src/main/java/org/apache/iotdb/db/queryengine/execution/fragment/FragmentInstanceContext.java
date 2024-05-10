@@ -516,6 +516,17 @@ public class FragmentInstanceContext extends QueryContext {
             getQueryStatistics().pageReadersDecodeAlignedDiskTime.get(),
             getQueryStatistics().pageReadersDecodeNonAlignedMemTime.get(),
             getQueryStatistics().pageReadersDecodeNonAlignedDiskTime.get());
+
+    // LOGGER.info(
+    //     "[tyx] Alinged Decode count = "
+    //         + getQueryStatistics().pageReadersDecodeAlignedDiskCount.get()
+    //         + " time = "
+    //         + getQueryStatistics().pageReadersDecodeAlignedDiskTime.get());
+    // LOGGER.info(
+    //     "[tyx] NonAlinged Decode count = "
+    //         + getQueryStatistics().pageReadersDecodeNonAlignedDiskCount.get()
+    //         + " time = "
+    //         + getQueryStatistics().pageReadersDecodeNonAlignedDiskTime.get());
   }
 
   private void releaseDataNodeQueryContext() {

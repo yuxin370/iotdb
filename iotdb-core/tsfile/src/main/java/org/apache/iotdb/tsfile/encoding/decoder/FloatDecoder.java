@@ -23,7 +23,10 @@ import org.apache.iotdb.tsfile.encoding.encoder.FloatEncoder;
 import org.apache.iotdb.tsfile.exception.encoding.TsFileDecodingException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+import org.apache.iotdb.tsfile.read.common.block.column.DoubleColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.FloatColumn;
 import org.apache.iotdb.tsfile.utils.Binary;
+import org.apache.iotdb.tsfile.utils.RLEPattern;
 import org.apache.iotdb.tsfile.utils.ReadWriteForEncodingUtils;
 
 import org.slf4j.Logger;
@@ -31,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 
 /**
  * Decoder for float or double value using rle or two diff. For more info about encoding pattern,
@@ -91,6 +95,39 @@ public class FloatDecoder extends Decoder {
     readMaxPointValue(buffer);
     long value = decoder.readLong(buffer);
     return value / maxPointValue;
+  }
+
+  @Override
+  public RLEPattern readRLEPattern(ByteBuffer buffer, TSDataType datatype) {
+    readMaxPointValue(buffer);
+    if (datatype == TSDataType.DOUBLE) {
+      RLEPattern value = decoder.readRLEPattern(buffer, TSDataType.INT64);
+      int valueCount = value.getValue().getPositionCount();
+      double[] results = new double[valueCount];
+      for (int i = 0; i < valueCount; i++) {
+        results[i] = value.getValue().getLong(i) / maxPointValue;
+      }
+      return new RLEPattern(
+          new DoubleColumn(valueCount, Optional.empty(), results),
+          new Integer(value.getLogicPositionCount()));
+    } else if (datatype == TSDataType.FLOAT) {
+      RLEPattern value = decoder.readRLEPattern(buffer, TSDataType.INT32);
+      int valueCount = value.getValue().getPositionCount();
+      float[] results = new float[valueCount];
+      for (int i = 0; i < valueCount; i++) {
+        results[i] = (float) (value.getValue().getInt(i) / maxPointValue);
+      }
+      return new RLEPattern(
+          new FloatColumn(valueCount, Optional.empty(), results),
+          new Integer(value.getLogicPositionCount()));
+    } else {
+      throw new TsFileDecodingException(
+          String.format("data type %s is not supported by FloatDecoder", datatype));
+    }
+  }
+
+  public boolean isRLEDecoder() {
+    return decoder instanceof RleDecoder;
   }
 
   private void readMaxPointValue(ByteBuffer buffer) {

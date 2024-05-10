@@ -188,6 +188,9 @@ public class RLEColumn implements Column {
     for (int i = 0, idx = startIndex; idx <= endIndex; i++, idx++) {
       logicPositionCount[i] = patternOffsetIndex[idx + 1] - patternOffsetIndex[idx];
     }
+    logicPositionCount[0] = patternOffsetIndex[startIndex + 1] - arrayOffset;
+    logicPositionCount[endIndex - startIndex] =
+        arrayOffset + positionCount - patternOffsetIndex[endIndex];
     return new Pair<Column[], int[]>(visibleColumns, logicPositionCount);
   }
 

@@ -172,14 +172,14 @@ public class TsBlockUtil {
         if (column.mayHaveNull()) {
           for (int i = 0; i < positionCount; i++) {
             if (column.isNull(i)) {
-              binaryColumnBuilder.writeFloat(column.getFloat(i));
+              binaryColumnBuilder.writeBinary(column.getBinary(i));
             } else {
               binaryColumnBuilder.appendNull();
             }
           }
         } else {
           for (int i = 0; i < positionCount; i++) {
-            binaryColumnBuilder.writeFloat(column.getFloat(i));
+            binaryColumnBuilder.writeBinary(column.getBinary(i));
           }
         }
         return binaryColumnBuilder.build();
@@ -189,7 +189,7 @@ public class TsBlockUtil {
     }
   }
 
-  public static ColumnBuilder[] contructColumnBuilder(List<TSDataType> dataType) {
+  public static ColumnBuilder[] contructColumnBuilders(List<TSDataType> dataType) {
     ColumnBuilder[] valueColumnBuilders = new ColumnBuilder[dataType.size()];
     for (int i = 0; i < dataType.size(); i++) {
       switch (dataType.get(i)) {

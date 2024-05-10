@@ -28,9 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import static io.airlift.slice.SizeOf.sizeOf;
 import static java.lang.Math.max;
+import static org.apache.iotdb.tsfile.read.common.block.TsBlockUtil.contructColumnBuilders;
 import static org.apache.iotdb.tsfile.read.common.block.column.ColumnUtil.calculateBlockResetSize;
 
 public class RLEColumnBuilder implements ColumnBuilder {
@@ -47,6 +49,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
   private int patternCount; // count of valid RlePatterns
   private TSDataType dataType;
   private boolean hasNonNullValue;
+  private int nullBuf;
 
   // it is assumed that patternOffsetIndex.length = values.length + 1
   private Column[] values = new Column[0];
@@ -62,7 +65,7 @@ public class RLEColumnBuilder implements ColumnBuilder {
     this.columnBuilderStatus = columnBuilderStatus;
     this.initialEntryCount = max(expectedEntries, 1);
     this.dataType = type;
-
+    this.nullBuf = 0;
     updateDataSize();
   }
 
@@ -116,6 +119,51 @@ public class RLEColumnBuilder implements ColumnBuilder {
     return this;
   }
 
+  private RLEColumnBuilder writeNullColumn() {
+    if (values.length <= patternCount) {
+      growCapacity();
+    }
+
+    ColumnBuilder nullColumnbuilder =
+        contructColumnBuilders(Collections.singletonList(dataType))[0];
+    nullColumnbuilder.appendNull();
+    Column nullColumn = nullColumnbuilder.build();
+    values[patternCount] = nullColumn;
+    patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + nullBuf;
+    patternCount++;
+    positionCount += nullBuf;
+    if (columnBuilderStatus != null) {
+      columnBuilderStatus.addBytes((int) nullColumn.getRetainedSizeInBytes());
+    }
+    nullBuf = 0;
+    return this;
+  }
+
+  public RLEColumnBuilder writeRLEPatternCheckNull(Column value, int logicPositionCount) {
+    if (!value.getDataType().equals(dataType)) {
+      throw new UnSupportedDataTypeException(
+          " only " + dataType + " supported, but get " + value.getDataType());
+    }
+
+    if (nullBuf != 0) {
+      writeNullColumn();
+    }
+
+    if (values.length <= patternCount) {
+      growCapacity();
+    }
+
+    values[patternCount] = value;
+    patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + logicPositionCount;
+    hasNonNullValue = true;
+    patternCount++;
+    positionCount += logicPositionCount;
+    if (columnBuilderStatus != null) {
+      columnBuilderStatus.addBytes((int) value.getRetainedSizeInBytes());
+    }
+    return this;
+  }
+
   @Override
   public ColumnBuilder write(Column column, int index) {
     throw new UnsupportedOperationException(getClass().getName());
@@ -123,7 +171,8 @@ public class RLEColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder appendNull() {
-    throw new UnsupportedOperationException(getClass().getName());
+    nullBuf++;
+    return this;
   }
 
   @Override
@@ -150,6 +199,11 @@ public class RLEColumnBuilder implements ColumnBuilder {
               "Unsupported DataType for RLEColumn:" + getDataType());
       }
     }
+
+    if (nullBuf != 0) {
+      writeNullColumn();
+    }
+
     return new RLEColumn(positionCount, values, patternOffsetIndex);
   }
 

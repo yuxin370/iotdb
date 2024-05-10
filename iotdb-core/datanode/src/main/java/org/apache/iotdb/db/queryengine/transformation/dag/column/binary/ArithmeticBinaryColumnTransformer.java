@@ -163,19 +163,20 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
     int length = 0; // the length to process each round
     double value = rightTransformer.getType().getDouble(rightColumn, 0);
     while (index < positionCount) {
-      if (curLeft == curLeftPositionCount) {
-        /** current leftPattern has reached end */
-        if (leftIndex < leftPatternCount) {
-          /** read next rlePattern */
-          curLeft = 0;
-          leftPatternColumn = leftPatterns.getLeft()[leftIndex];
-          curLeftPositionCount = leftPatterns.getRight()[leftIndex];
-          leftIndex++;
-        } else {
-          throw new RuntimeException(
-              "The positionCount of leftColumn is less than the requested positionCount");
-        }
+      // if (curLeft == curLeftPositionCount) {
+      /** current leftPattern has reached end */
+      if (leftIndex < leftPatternCount) {
+        /** read next rlePattern */
+        curLeft = 0;
+        leftPatternColumn = leftPatterns.getLeft()[leftIndex];
+        curLeftPositionCount = leftPatterns.getRight()[leftIndex];
+        leftIndex++;
+      } else {
+        throw new RuntimeException(
+            "The positionCount of leftColumn is less than the requested positionCount");
       }
+      // }
+
       length =
           curLeftPositionCount - curLeft > positionCount - index
               ? positionCount - index
@@ -212,19 +213,19 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
 
     double value = leftTransformer.getType().getDouble(leftColumn, 0);
     while (index < positionCount) {
-      if (curRight == curRightPositionCount) {
-        /** current rightPattern has reached end */
-        if (rightIndex + 1 < rightPatternCount) {
-          /** read next rlePattern */
-          curRight = 0;
-          rightPatternColumn = rightPatterns.getLeft()[rightIndex];
-          curRightPositionCount = rightPatterns.getRight()[rightIndex];
-          rightIndex++;
-        } else {
-          throw new RuntimeException(
-              "The positionCount of rightColumn is less than the requested positionCount");
-        }
+      // if (curRight == curRightPositionCount) {
+      /** current rightPattern has reached end */
+      if (rightIndex < rightPatternCount) {
+        /** read next rlePattern */
+        curRight = 0;
+        rightPatternColumn = rightPatterns.getLeft()[rightIndex];
+        curRightPositionCount = rightPatterns.getRight()[rightIndex];
+        rightIndex++;
+      } else {
+        throw new RuntimeException(
+            "The positionCount of rightColumn is less than the requested positionCount");
       }
+      // }
 
       length =
           curRightPositionCount - curRight > positionCount - index

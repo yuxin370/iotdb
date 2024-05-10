@@ -438,7 +438,7 @@ public abstract class CompareBinaryColumnTransformer extends BinaryColumnTransfo
     while (index < positionCount) {
       if (curRight == curRightPositionCount) {
         /** current rightPattern has reached end */
-        if (rightIndex + 1 < rightPatternCount) {
+        if (rightIndex < rightPatternCount) {
           /** read next rlePattern */
           curRight = 0;
           rightPatternColumn = rightPatterns.getLeft()[rightIndex];
