@@ -31,15 +31,21 @@ import org.apache.tsfile.block.column.ColumnBuilder;
 import org.apache.tsfile.common.conf.TSFileDescriptor;
 import org.apache.tsfile.enums.TSDataType;
 import org.apache.tsfile.read.common.block.TsBlock;
+import org.apache.tsfile.read.common.block.column.RLEColumn;
+import org.apache.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.tsfile.read.common.block.column.TimeColumn;
 import org.apache.tsfile.read.common.block.column.TimeColumnBuilder;
+import org.apache.tsfile.utils.Pair;
 import org.apache.tsfile.utils.RamUsageEstimator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class SeriesScanOperator extends AbstractDataSourceOperator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SeriesScanOperator.class);
   private static final long INSTANCE_SIZE =
       RamUsageEstimator.shallowSizeOfInstance(SeriesScanOperator.class);
 
@@ -152,27 +158,87 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
     return false;
   }
 
-  private void appendToBuilder(TsBlock tsBlock) {
+  private void appendRLEToBuilder(TsBlock tsBlock) {
+    RLEColumn column = (RLEColumn) tsBlock.getColumn(0);
+    ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
+    Column storeColumn = null;
+    if (!(columnBuilder instanceof RLEColumnBuilder)) {
+      if (resultTsBlockBuilder.getPositionCount() == 0) {
+        resultTsBlockBuilder.buildValueColumnBuilders(
+            new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
+      } else {
+        storeColumn = columnBuilder.build();
+        resultTsBlockBuilder.buildValueColumnBuilders(
+            new ColumnBuilder[] {new RLEColumnBuilder(null, 1, columnBuilder.getDataType())});
+      }
+    }
     TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
     TimeColumn timeColumn = tsBlock.getTimeColumn();
-    ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
-    Column column = tsBlock.getColumn(0);
+    RLEColumnBuilder rlecolumnBuilder = (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(0);
+    if (storeColumn != null) {
+      rlecolumnBuilder.writeRLEPattern(storeColumn, storeColumn.getPositionCount());
+    }
+    Pair<Column[], int[]> patterns = column.getVisibleColumns();
+    Column[] columns = patterns.getLeft();
+    int[] logicPositionCounts = patterns.getRight();
+    int rowFlag = 0;
 
-    if (column.mayHaveNull()) {
-      for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
-        timeColumnBuilder.writeLong(timeColumn.getLong(i));
-        if (column.isNull(i)) {
-          columnBuilder.appendNull();
-        } else {
-          columnBuilder.write(column, i);
-        }
-        resultTsBlockBuilder.declarePosition();
+    for (int i = 0, size = columns.length; i < size; i++) {
+      rlecolumnBuilder.writeRLEPattern(columns[i], logicPositionCounts[i]);
+      resultTsBlockBuilder.declarePositions(logicPositionCounts[i]);
+      for (int c = rowFlag; c < rowFlag + logicPositionCounts[i]; c++) {
+        timeColumnBuilder.writeLong(timeColumn.getLong(c));
       }
-    } else {
+      rowFlag += logicPositionCounts[i];
+    }
+  }
+
+  private void appendToBuilder(TsBlock tsBlock) {
+    /**
+     * Check the following conditions: 1) Whether it encounters RLE (Run-Length Encoding). 2)
+     * Whether there is data in the builder. 3) Whether the builder is an RLE builder.
+     *
+     * <p>Cases: 1) If there is data and the builder is an RLEBuilder, and RLE is encountered: Write
+     * normally. 2) If there is data and the builder is not an RLEBuilder, and RLE is encountered:
+     * Write normally. 3) If there is no data and the builder is not an RLEBuilder, and RLE is
+     * encountered: Replace the existing Builder with a RLEbuilder. 4) If there is data and the
+     * builder is an RLEBuilder, and a single value is encountered: Write the entire column to
+     * RLEBuilde. 5) If there is data and the builder is not an RLEBuilder, and a single value is
+     * encountered: Write normally. 6) If there is no data and the builder is not an RLEBuilder, and
+     * a single value is encountered: Write normally.
+     */
+    Column column = tsBlock.getColumn(0);
+    ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
+    LOGGER.info("[tyx] meet a column of type : " + column.toString());
+    if ((column instanceof RLEColumn)) {
+      appendRLEToBuilder(tsBlock);
+    } else if (columnBuilder instanceof RLEColumnBuilder) {
+      TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
+      TimeColumn timeColumn = tsBlock.getTimeColumn();
+      ((RLEColumnBuilder) columnBuilder).writeRLEPattern(column, column.getPositionCount());
       for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
         timeColumnBuilder.writeLong(timeColumn.getLong(i));
-        columnBuilder.write(column, i);
-        resultTsBlockBuilder.declarePosition();
+      }
+      resultTsBlockBuilder.declarePositions(tsBlock.getPositionCount());
+    } else {
+      TimeColumnBuilder timeColumnBuilder = resultTsBlockBuilder.getTimeColumnBuilder();
+      TimeColumn timeColumn = tsBlock.getTimeColumn();
+      if (column.mayHaveNull()) {
+        for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(i));
+          if (column.isNull(i)) {
+            columnBuilder.appendNull();
+          } else {
+            columnBuilder.write(column, i);
+          }
+          resultTsBlockBuilder.declarePosition();
+        }
+      } else {
+        for (int i = 0, size = tsBlock.getPositionCount(); i < size; i++) {
+          timeColumnBuilder.writeLong(timeColumn.getLong(i));
+          columnBuilder.write(column, i);
+          resultTsBlockBuilder.declarePosition();
+        }
       }
     }
   }
