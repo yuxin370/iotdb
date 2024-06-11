@@ -25,15 +25,22 @@ import org.apache.iotdb.db.queryengine.execution.operator.OperatorContext;
 import org.apache.iotdb.db.queryengine.execution.operator.process.AbstractConsumeAllOperator;
 import org.apache.iotdb.db.queryengine.execution.operator.process.join.merge.ColumnMerger;
 import org.apache.iotdb.db.queryengine.execution.operator.process.join.merge.TimeComparator;
+import org.apache.iotdb.db.queryengine.plan.planner.plan.parameter.InputLocation;
 import org.apache.iotdb.db.queryengine.plan.statement.component.Ordering;
 import org.apache.iotdb.db.utils.datastructure.TimeSelector;
 import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.Column;
+import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumn;
+import org.apache.iotdb.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +49,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.Futures.successfulAsList;
 
 public class FullOuterTimeJoinOperator extends AbstractConsumeAllOperator {
-
+  private static final Logger logger = LoggerFactory.getLogger(FullOuterTimeJoinOperator.class);
   /** Start index for each input TsBlocks and size of it is equal to inputTsBlocks. */
   private final int[] inputIndex;
 
@@ -120,8 +127,38 @@ public class FullOuterTimeJoinOperator extends AbstractConsumeAllOperator {
         : successfulAsList(listenableFutures);
   }
 
+  private void updateResultBuilderType() {
+    // update ResultBuilder for CompressedColumn Type (eg. RLE)
+    for (int i = 0; i < outputColumnCount; i++) {
+      ColumnBuilder columnBuilder = tsBlockBuilder.getColumnBuilder(i);
+      if (!(columnBuilder instanceof RLEColumnBuilder)) {
+        Boolean neadChange = true;
+        ColumnMerger merger = mergers.get(i);
+        List<InputLocation> inputLocations = merger.getLocations();
+        for (InputLocation location : inputLocations) {
+          int tsBlockIndex = location.getTsBlockIndex();
+          if (!(inputTsBlocks[tsBlockIndex] == null)) {
+            Column valueColumn =
+                inputTsBlocks[tsBlockIndex].getColumn(location.getValueColumnIndex());
+            if (!(valueColumn instanceof RLEColumn)) {
+              neadChange = false;
+              break;
+            }
+          }
+        }
+        if (neadChange) {
+          tsBlockBuilder.buildValueColumnBuilder(
+              i,
+              new RLEColumnBuilder(null, 1, columnBuilder.getDataType()),
+              columnBuilder.getDataType());
+        }
+      }
+    }
+  }
+
   @Override
   public TsBlock next() throws Exception {
+    // logger.info("[tyx] FullOuterTimeJoinOperator");
     if (retainedTsBlock != null) {
       return getResultFromRetainedTsBlock();
     }
@@ -129,6 +166,8 @@ public class FullOuterTimeJoinOperator extends AbstractConsumeAllOperator {
     if (!prepareInput()) {
       return null;
     }
+
+    // updateResultBuilderType();
 
     // End time for returned TsBlock this time, it's the min/max end time among all the children
     // TsBlocks order by asc/desc

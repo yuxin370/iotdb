@@ -62,6 +62,7 @@ public class VarianceAccumulator implements Accumulator {
 
   @Override
   public void addInput(Column[] column, BitMap bitMap, int lastIndex) {
+    // LOGGER.info("[tyx] variance for column : " + column[1].toString() + ".");
     switch (seriesDataType) {
       case INT32:
         addIntInput(column, bitMap, lastIndex);

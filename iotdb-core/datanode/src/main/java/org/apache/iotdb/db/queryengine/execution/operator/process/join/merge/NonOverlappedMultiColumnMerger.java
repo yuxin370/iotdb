@@ -51,6 +51,11 @@ public class NonOverlappedMultiColumnMerger implements ColumnMerger {
   }
 
   @Override
+  public List<InputLocation> getLocations() {
+    return inputLocations;
+  }
+
+  @Override
   public void mergeColumn(
       TsBlock[] inputTsBlocks,
       int[] inputIndex,

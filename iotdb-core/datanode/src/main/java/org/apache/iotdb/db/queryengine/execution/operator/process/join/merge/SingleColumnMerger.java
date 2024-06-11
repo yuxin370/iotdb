@@ -26,6 +26,9 @@ import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
 
+import java.util.Collections;
+import java.util.List;
+
 /** only has one input column. */
 public class SingleColumnMerger implements ColumnMerger {
 
@@ -36,6 +39,12 @@ public class SingleColumnMerger implements ColumnMerger {
   public SingleColumnMerger(InputLocation location, TimeComparator comparator) {
     this.location = location;
     this.comparator = comparator;
+  }
+
+  @Override
+  public List<InputLocation> getLocations() {
+    // to alinged with multiColumnMerger, we return location as a List with only one location
+    return Collections.singletonList(location);
   }
 
   @Override

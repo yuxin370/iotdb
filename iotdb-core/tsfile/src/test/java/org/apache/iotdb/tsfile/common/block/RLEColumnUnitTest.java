@@ -137,6 +137,42 @@ public class RLEColumnUnitTest {
   }
 
   @Test
+  public void testWriteColumn() {
+    int patternCount = 10;
+    int innnerPositionCount = 10;
+    RLEColumnBuilder builder =
+        new RLEColumnBuilder(null, innnerPositionCount * patternCount, TSDataType.BOOLEAN);
+    Column column = new BooleanColumn(1, Optional.empty(), new boolean[] {true});
+    Column column2 = new BooleanColumn(1, Optional.empty(), new boolean[] {false});
+    for (int i = 0; i < patternCount; i++) {
+      if (i % 3 != 0) {
+        for (int j = 0; j < innnerPositionCount; j++) {
+          builder.write(column, 0);
+        }
+      } else {
+        for (int j = 0; j < innnerPositionCount; j++) {
+          builder.write(j / 2 == 0 ? column : column2, 0);
+        }
+      }
+    }
+    RLEColumn input = (RLEColumn) builder.build();
+    int k = 0;
+    for (int i = 0; i < patternCount; i++) {
+      if (i % 3 != 0) {
+        for (int j = 0; j < innnerPositionCount; j++) {
+          Assert.assertEquals(column.getObject(0), input.getObject(k));
+          k++;
+        }
+      } else {
+        for (int j = 0; j < innnerPositionCount; j++) {
+          Assert.assertEquals((j / 2 == 0 ? column : column2).getObject(0), input.getObject(k));
+          k++;
+        }
+      }
+    }
+  }
+
+  @Test
   public void testIntColumn() {
     int patternCount = 10;
     int innnerPositionCount = 10;

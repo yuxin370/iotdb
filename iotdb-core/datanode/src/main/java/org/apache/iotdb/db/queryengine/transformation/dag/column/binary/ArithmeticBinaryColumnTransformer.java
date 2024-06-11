@@ -256,6 +256,12 @@ public abstract class ArithmeticBinaryColumnTransformer extends BinaryColumnTran
   @Override
   protected void doTransform(
       Column leftColumn, Column rightColumn, ColumnBuilder builder, int positionCount) {
+    // LOGGER.info(
+    //     "[tyx] ArithmeticBinaryColumnTransformer leftColumn = "
+    //         + leftColumn.toString()
+    //         + " rightColumn = "
+    //         + rightColumn.toString()
+    //         + ".");
     if (leftColumn instanceof RLEColumn && rightColumn instanceof RLEColumn) {
       doTransformBetweenRLE(leftColumn, rightColumn, builder, positionCount);
       return;

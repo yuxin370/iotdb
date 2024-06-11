@@ -190,7 +190,11 @@ public class RLEColumn implements Column {
     }
     logicPositionCount[0] = patternOffsetIndex[startIndex + 1] - arrayOffset;
     logicPositionCount[endIndex - startIndex] =
-        arrayOffset + positionCount - patternOffsetIndex[endIndex];
+        arrayOffset
+            + positionCount
+            - (patternOffsetIndex[endIndex] < arrayOffset
+                ? arrayOffset
+                : patternOffsetIndex[endIndex]);
     return new Pair<Column[], int[]>(visibleColumns, logicPositionCount);
   }
 

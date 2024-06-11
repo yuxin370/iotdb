@@ -37,6 +37,11 @@ public class MultiColumnMerger implements ColumnMerger {
     this.inputLocations = inputLocations;
   }
 
+  @Override
+  public List<InputLocation> getLocations() {
+    return inputLocations;
+  }
+
   @SuppressWarnings("squid:S3776")
   @Override
   public void mergeColumn(

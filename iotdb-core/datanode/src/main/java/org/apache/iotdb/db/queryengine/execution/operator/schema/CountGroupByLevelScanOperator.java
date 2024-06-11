@@ -38,6 +38,8 @@ import org.apache.iotdb.tsfile.utils.Binary;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,6 +50,7 @@ import java.util.NoSuchElementException;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 public class CountGroupByLevelScanOperator<T extends ISchemaInfo> implements SourceOperator {
+  private static final Logger logger = LoggerFactory.getLogger(CountGroupByLevelScanOperator.class);
 
   private static final int DEFAULT_BATCH_SIZE = 1000;
 
@@ -103,6 +106,7 @@ public class CountGroupByLevelScanOperator<T extends ISchemaInfo> implements Sou
    * CountGroupByLevelScanOperator#next} will be set.
    */
   private ListenableFuture<?> tryGetNext() {
+    // logger.info("[tyx] CountGroupByLevelScanOperator");
     if (schemaReader == null) {
       schemaReader = createTimeSeriesReader();
     }

@@ -49,7 +49,16 @@ public class RLEColumnBuilder implements ColumnBuilder {
   private int patternCount; // count of valid RlePatterns
   private TSDataType dataType;
   private boolean hasNonNullValue;
-  private int nullBuf;
+  // private int nullBuf;
+
+  // variables for dynamic encoding
+  private ColumnBuilder valueBuf;
+  // private int valueCount; // logic value count
+  private int bufCount; // physical value count
+  private int
+      repeatCount; // repeat value count int the end of value buf (only one physical value wrote
+  // into buf)
+  private Object lastValue; // last value in buf
 
   // it is assumed that patternOffsetIndex.length = values.length + 1
   private Column[] values = new Column[0];
@@ -65,7 +74,9 @@ public class RLEColumnBuilder implements ColumnBuilder {
     this.columnBuilderStatus = columnBuilderStatus;
     this.initialEntryCount = max(expectedEntries, 1);
     this.dataType = type;
-    this.nullBuf = 0;
+    this.valueBuf = contructColumnBuilders(Collections.singletonList(dataType))[0];
+    this.repeatCount = 0;
+    this.bufCount = 0;
     updateDataSize();
   }
 
@@ -108,49 +119,9 @@ public class RLEColumnBuilder implements ColumnBuilder {
       growCapacity();
     }
 
-    values[patternCount] = value;
-    patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + logicPositionCount;
-    hasNonNullValue = true;
-    patternCount++;
-    positionCount += logicPositionCount;
-    if (columnBuilderStatus != null) {
-      columnBuilderStatus.addBytes((int) value.getRetainedSizeInBytes());
-    }
-    return this;
-  }
-
-  private RLEColumnBuilder writeNullColumn() {
-    if (values.length <= patternCount) {
-      growCapacity();
-    }
-
-    ColumnBuilder nullColumnbuilder =
-        contructColumnBuilders(Collections.singletonList(dataType))[0];
-    nullColumnbuilder.appendNull();
-    Column nullColumn = nullColumnbuilder.build();
-    values[patternCount] = nullColumn;
-    patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + nullBuf;
-    patternCount++;
-    positionCount += nullBuf;
-    if (columnBuilderStatus != null) {
-      columnBuilderStatus.addBytes((int) nullColumn.getRetainedSizeInBytes());
-    }
-    nullBuf = 0;
-    return this;
-  }
-
-  public RLEColumnBuilder writeRLEPatternCheckNull(Column value, int logicPositionCount) {
-    if (!value.getDataType().equals(dataType)) {
-      throw new UnSupportedDataTypeException(
-          " only " + dataType + " supported, but get " + value.getDataType());
-    }
-
-    if (nullBuf != 0) {
-      writeNullColumn();
-    }
-
-    if (values.length <= patternCount) {
-      growCapacity();
+    if (bufCount != 0) {
+      // LOGGER.info("[tyx] writeBufValue when writeRLEPattern");
+      writeBufValue();
     }
 
     values[patternCount] = value;
@@ -166,17 +137,25 @@ public class RLEColumnBuilder implements ColumnBuilder {
 
   @Override
   public ColumnBuilder write(Column column, int index) {
-    throw new UnsupportedOperationException(getClass().getName());
+    Object value = column.getObject(index);
+    appendSingleValue(value);
+    return this;
   }
 
   @Override
   public ColumnBuilder appendNull() {
-    nullBuf++;
+    appendSingleValue(null);
     return this;
   }
 
   @Override
   public Column build() {
+
+    if (bufCount != 0) {
+      // LOGGER.info("[tyx] writeBufValue when build");
+      writeBufValue();
+    }
+
     if (!hasNonNullValue) {
       switch (getDataType()) {
         case INT32:
@@ -200,10 +179,6 @@ public class RLEColumnBuilder implements ColumnBuilder {
       }
     }
 
-    if (nullBuf != 0) {
-      writeNullColumn();
-    }
-
     return new RLEColumn(positionCount, values, patternOffsetIndex);
   }
 
@@ -221,6 +196,117 @@ public class RLEColumnBuilder implements ColumnBuilder {
   public ColumnBuilder newColumnBuilderLike(ColumnBuilderStatus columnBuilderStatus) {
     return new RLEColumnBuilder(
         columnBuilderStatus, calculateBlockResetSize(positionCount), dataType);
+  }
+
+  private void writeBufValue() {
+    // LOGGER.info("[tyx] repeatCount = " + repeatCount + " bufCount = " + bufCount);
+    // valueBuf is not null, push buf value to builder
+    if (repeatCount > 8) {
+      // write bit-packed column and run-length column separatly
+      if (bufCount > 1) {
+        writeRLEPatternWithoutCheckBuf(valueBuf.build(), bufCount);
+      }
+      // there are repeat values.
+      ColumnBuilder tpColumn = contructColumnBuilders(Collections.singletonList(dataType))[0];
+      if (lastValue == null) {
+        tpColumn.appendNull();
+      } else {
+        tpColumn.writeObject(lastValue);
+      }
+      writeRLEPatternWithoutCheckBuf(tpColumn.build(), repeatCount - (bufCount > 1 ? 1 : 0));
+    } else if (repeatCount > 1) {
+      for (int i = 1; i < repeatCount; i++) {
+        // pack repeat values into bit-packed values
+        if (lastValue == null) {
+          valueBuf.appendNull();
+        } else {
+          valueBuf.writeObject(lastValue);
+        }
+      }
+      writeRLEPatternWithoutCheckBuf(valueBuf.build(), bufCount + repeatCount - 1);
+    } else {
+      writeRLEPatternWithoutCheckBuf(valueBuf.build(), bufCount);
+    }
+    valueBuf = valueBuf.newColumnBuilderLike(null);
+    bufCount = 0;
+    repeatCount = 0;
+  }
+
+  private void appendSingleValue(Object value) {
+    if (bufCount == 0) {
+      // empty buf, just write it.
+      if (value == null) {
+        valueBuf.appendNull();
+      } else {
+        valueBuf.writeObject(value);
+      }
+      bufCount = 1;
+      repeatCount = 1;
+      lastValue = value;
+      return;
+    }
+    if ((lastValue != null && lastValue.equals(value)) || (lastValue == null && value == null)) {
+      // get repeat value
+      repeatCount += 1;
+    } else {
+      // get different value
+      if (repeatCount < 8) {
+        // degenerate into bitpacked mode
+        for (int i = 1; i < repeatCount; i++) {
+          if (lastValue == null) {
+            valueBuf.appendNull();
+          } else {
+            valueBuf.writeObject(lastValue);
+          }
+        }
+        bufCount += repeatCount;
+      } else {
+        // save current column and construct a new empty columnbuilder for the following values
+        if (bufCount > 1) {
+          writeRLEPatternWithoutCheckBuf(valueBuf.build(), bufCount);
+        }
+        if (repeatCount > 1) {
+          // there are repeat values.
+          ColumnBuilder tpColumn = contructColumnBuilders(Collections.singletonList(dataType))[0];
+          if (lastValue == null) {
+            tpColumn.appendNull();
+          } else {
+            tpColumn.writeObject(lastValue);
+          }
+          writeRLEPatternWithoutCheckBuf(tpColumn.build(), repeatCount - (bufCount > 1 ? 1 : 0));
+        }
+        valueBuf = valueBuf.newColumnBuilderLike(null);
+        bufCount = 1;
+      }
+      if (value == null) {
+        valueBuf.appendNull();
+      } else {
+        valueBuf.writeObject(value);
+      }
+      repeatCount = 1;
+      lastValue = value;
+    }
+  }
+
+  private RLEColumnBuilder writeRLEPatternWithoutCheckBuf(Column value, int logicPositionCount) {
+    if (!value.getDataType().equals(dataType)) {
+      throw new UnSupportedDataTypeException(
+          " only " + dataType + " supported, but get " + value.getDataType());
+    }
+
+    if (values.length <= patternCount) {
+      growCapacity();
+    }
+
+    values[patternCount] = value;
+    patternOffsetIndex[patternCount + 1] = patternOffsetIndex[patternCount] + logicPositionCount;
+    hasNonNullValue = true;
+    patternCount++;
+    positionCount += logicPositionCount;
+    if (columnBuilderStatus != null) {
+      columnBuilderStatus.addBytes((int) value.getRetainedSizeInBytes());
+    }
+    return this;
   }
 
   private void growCapacity() {

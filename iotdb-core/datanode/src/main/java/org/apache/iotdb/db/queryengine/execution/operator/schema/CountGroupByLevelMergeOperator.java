@@ -29,6 +29,8 @@ import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.iotdb.tsfile.utils.Binary;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +43,8 @@ import static com.google.common.util.concurrent.Futures.successfulAsList;
 
 public class CountGroupByLevelMergeOperator implements ProcessOperator {
 
+  private static final Logger logger =
+      LoggerFactory.getLogger(CountGroupByLevelMergeOperator.class);
   private final OperatorContext operatorContext;
 
   private final List<Operator> children;
@@ -120,6 +124,9 @@ public class CountGroupByLevelMergeOperator implements ProcessOperator {
       String columnName =
           tsBlock.getColumn(0).getBinary(i).getStringValue(TSFileConfig.STRING_CHARSET);
       long count = tsBlock.getColumn(1).getLong(i);
+      // logger.info(
+      //     "[tyx] CountGroupByLevelMergeOperator column name = " + columnName + " count = " +
+      // count);
       countMap.put(columnName, countMap.getOrDefault(columnName, 0L) + count);
     }
   }

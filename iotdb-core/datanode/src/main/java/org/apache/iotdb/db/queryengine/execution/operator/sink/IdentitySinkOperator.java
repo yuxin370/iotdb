@@ -55,6 +55,11 @@ public class IdentitySinkOperator implements Operator {
     this.children = children;
     this.downStreamChannelIndex = downStreamChannelIndex;
     this.sinkHandle = sinkHandle;
+    // LOGGER.info("[tyx] ----------------------------------------------- ");
+    // for (int i = 0, size = children.size(); i < size; i++) {
+    //   LOGGER.info("[tyx] " + children.get(i).toString() + ".");
+    // }
+    // LOGGER.info("[tyx] ----------------------------------------------- ");
   }
 
   @Override

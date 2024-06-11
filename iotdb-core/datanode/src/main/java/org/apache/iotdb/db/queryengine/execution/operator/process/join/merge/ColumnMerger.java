@@ -19,9 +19,12 @@
 
 package org.apache.iotdb.db.queryengine.execution.operator.process.join.merge;
 
+import org.apache.iotdb.db.queryengine.plan.planner.plan.parameter.InputLocation;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 import org.apache.iotdb.tsfile.read.common.block.column.TimeColumnBuilder;
+
+import java.util.List;
 
 /** used to merge columns belonging to same series into one column. */
 public interface ColumnMerger {
@@ -80,4 +83,6 @@ public interface ColumnMerger {
       int[] updatedInputIndex,
       long currentTime,
       ColumnBuilder columnBuilder);
+
+  public List<InputLocation> getLocations();
 }
