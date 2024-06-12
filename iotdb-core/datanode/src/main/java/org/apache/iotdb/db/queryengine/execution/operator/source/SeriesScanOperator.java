@@ -209,7 +209,6 @@ public class SeriesScanOperator extends AbstractDataSourceOperator {
      */
     Column column = tsBlock.getColumn(0);
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(0);
-    LOGGER.info("[tyx] meet a column of type : " + column.toString());
     if ((column instanceof RLEColumn)) {
       appendRLEToBuilder(tsBlock);
     } else if (columnBuilder instanceof RLEColumnBuilder) {

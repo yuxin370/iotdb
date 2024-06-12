@@ -24,7 +24,9 @@ import org.apache.tsfile.block.column.ColumnBuilder;
 import org.apache.tsfile.enums.TSDataType;
 import org.apache.tsfile.file.metadata.statistics.IntegerStatistics;
 import org.apache.tsfile.file.metadata.statistics.Statistics;
+import org.apache.tsfile.read.common.block.column.RLEColumn;
 import org.apache.tsfile.utils.BitMap;
+import org.apache.tsfile.utils.Pair;
 import org.apache.tsfile.write.UnSupportedDataTypeException;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -170,6 +172,47 @@ public class AvgAccumulator implements Accumulator {
 
   private void addIntInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          int validCount = 0;
+          if ((bitMap == null || bitMap.getRegion(curIndex, curPatternLength).isAllMarked())) {
+            initResult = true;
+            validCount += curPatternLength;
+            curIndex += curPatternLength;
+          } else {
+            for (int j = 0; j < curPatternLength; j++, curIndex++) {
+              if (!bitMap.isMarked(curIndex)) {
+                continue;
+              }
+              initResult = true;
+              validCount++;
+            }
+          }
+          countValue += validCount;
+          sumValue += curPattern.getInt(0) * validCount;
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              initResult = true;
+              countValue++;
+              sumValue += curPattern.getInt(j);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
@@ -184,6 +227,48 @@ public class AvgAccumulator implements Accumulator {
 
   private void addLongInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+
+        if (curPattern.getPositionCount() == 1) {
+          int validCount = 0;
+          if (bitMap == null || bitMap.getRegion(curIndex, curPatternLength).isAllMarked()) {
+            initResult = true;
+            validCount += curPatternLength;
+            curIndex += curPatternLength;
+          } else {
+            for (int j = 0; j < curPatternLength; j++, curIndex++) {
+              if (!bitMap.isMarked(curIndex)) {
+                continue;
+              }
+              initResult = true;
+              validCount++;
+            }
+          }
+          countValue += validCount;
+          sumValue += curPattern.getLong(0) * validCount;
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              initResult = true;
+              countValue++;
+              sumValue += curPattern.getLong(j);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
@@ -198,6 +283,47 @@ public class AvgAccumulator implements Accumulator {
 
   private void addFloatInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          int validCount = 0;
+          if (bitMap == null || bitMap.getRegion(curIndex, curPatternLength).isAllMarked()) {
+            initResult = true;
+            validCount += curPatternLength;
+            curIndex += curPatternLength;
+          } else {
+            for (int j = 0; j < curPatternLength; j++, curIndex++) {
+              if (!bitMap.isMarked(curIndex)) {
+                continue;
+              }
+              initResult = true;
+              validCount++;
+            }
+          }
+          countValue += validCount;
+          sumValue += curPattern.getFloat(0) * validCount;
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              initResult = true;
+              countValue++;
+              sumValue += curPattern.getFloat(j);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
@@ -212,6 +338,47 @@ public class AvgAccumulator implements Accumulator {
 
   private void addDoubleInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          int validCount = 0;
+          if (bitMap == null || bitMap.getRegion(curIndex, curPatternLength).isAllMarked()) {
+            initResult = true;
+            validCount += curPatternLength;
+            curIndex += curPatternLength;
+          } else {
+            for (int j = 0; j < curPatternLength; j++, curIndex++) {
+              if (!bitMap.isMarked(curIndex)) {
+                continue;
+              }
+              initResult = true;
+              validCount++;
+            }
+          }
+          countValue += validCount;
+          sumValue += curPattern.getDouble(0) * validCount;
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              initResult = true;
+              countValue++;
+              sumValue += curPattern.getDouble(j);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;

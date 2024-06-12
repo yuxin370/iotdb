@@ -34,8 +34,11 @@ import org.apache.tsfile.common.conf.TSFileDescriptor;
 import org.apache.tsfile.enums.TSDataType;
 import org.apache.tsfile.read.common.block.TsBlock;
 import org.apache.tsfile.read.common.block.TsBlockBuilder;
+import org.apache.tsfile.read.common.block.column.RLEColumn;
+import org.apache.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.tsfile.read.common.block.column.TimeColumn;
 import org.apache.tsfile.read.common.block.column.TimeColumnBuilder;
+import org.apache.tsfile.utils.Pair;
 import org.apache.tsfile.utils.RamUsageEstimator;
 
 import java.io.IOException;
@@ -196,20 +199,60 @@ public class AlignedSeriesScanOperator extends AbstractDataSourceOperator {
     }
   }
 
+  private void appendRLEToBuilder(int columnIndex, TsBlock tsBlock, int size) {
+    RLEColumn column = (RLEColumn) tsBlock.getColumn(columnIndex);
+    ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(columnIndex);
+    Column storeColumn = null;
+    if (!(columnBuilder instanceof RLEColumnBuilder)) {
+      if (resultTsBlockBuilder.getPositionCount() == 0) {
+        resultTsBlockBuilder.buildValueColumnBuilder(
+            columnIndex,
+            new RLEColumnBuilder(null, 1, columnBuilder.getDataType()),
+            columnBuilder.getDataType());
+      } else {
+        storeColumn = columnBuilder.build();
+        resultTsBlockBuilder.buildValueColumnBuilder(
+            columnIndex,
+            new RLEColumnBuilder(null, 1, columnBuilder.getDataType()),
+            columnBuilder.getDataType());
+      }
+    }
+    RLEColumnBuilder rlecolumnBuilder =
+        (RLEColumnBuilder) resultTsBlockBuilder.getColumnBuilder(columnIndex);
+    if (storeColumn != null) {
+      rlecolumnBuilder.writeRLEPattern(storeColumn, storeColumn.getPositionCount());
+    }
+    Pair<Column[], int[]> patterns = column.getVisibleColumns();
+    Column[] columns = patterns.getLeft();
+    int[] logicPositionCounts = patterns.getRight();
+
+    for (int i = 0, patternCount = columns.length; i < patternCount; i++) {
+      rlecolumnBuilder.writeRLEPattern(columns[i], logicPositionCounts[i]);
+    }
+  }
+
   private void appendOneColumn(int columnIndex, TsBlock tsBlock, int size) {
     ColumnBuilder columnBuilder = resultTsBlockBuilder.getColumnBuilder(columnIndex);
     Column column = tsBlock.getColumn(columnIndex);
-    if (column.mayHaveNull()) {
-      for (int i = 0; i < size; i++) {
-        if (column.isNull(i)) {
-          columnBuilder.appendNull();
-        } else {
+    if ((column instanceof RLEColumn)) {
+      // if((columnBuilder instanceof RLEColumnBuilder
+      // || resultTsBlockBuilder.getPositionCount() == 0))
+      appendRLEToBuilder(columnIndex, tsBlock, size);
+    } else if (columnBuilder instanceof RLEColumnBuilder) {
+      ((RLEColumnBuilder) columnBuilder).writeRLEPattern(column, size);
+    } else {
+      if (column.mayHaveNull()) {
+        for (int i = 0; i < size; i++) {
+          if (column.isNull(i)) {
+            columnBuilder.appendNull();
+          } else {
+            columnBuilder.write(column, i);
+          }
+        }
+      } else {
+        for (int i = 0; i < size; i++) {
           columnBuilder.write(column, i);
         }
-      }
-    } else {
-      for (int i = 0; i < size; i++) {
-        columnBuilder.write(column, i);
       }
     }
   }

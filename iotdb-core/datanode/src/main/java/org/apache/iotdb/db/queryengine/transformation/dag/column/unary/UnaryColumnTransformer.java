@@ -23,6 +23,8 @@ import org.apache.iotdb.db.queryengine.transformation.dag.column.ColumnTransform
 
 import org.apache.tsfile.block.column.Column;
 import org.apache.tsfile.block.column.ColumnBuilder;
+import org.apache.tsfile.read.common.block.column.RLEColumn;
+import org.apache.tsfile.read.common.block.column.RLEColumnBuilder;
 import org.apache.tsfile.read.common.type.Type;
 
 public abstract class UnaryColumnTransformer extends ColumnTransformer {
@@ -38,7 +40,12 @@ public abstract class UnaryColumnTransformer extends ColumnTransformer {
   public void evaluate() {
     childColumnTransformer.tryEvaluate();
     Column column = childColumnTransformer.getColumn();
-    ColumnBuilder columnBuilder = returnType.createColumnBuilder(column.getPositionCount());
+    ColumnBuilder columnBuilder;
+    if (!(this instanceof InColumnTransformer) && column instanceof RLEColumn) {
+      columnBuilder = new RLEColumnBuilder(null, 1, returnType.getTypeEnum());
+    } else {
+      columnBuilder = returnType.createColumnBuilder(column.getPositionCount());
+    }
     doTransform(column, columnBuilder);
     initializeColumnCache(columnBuilder.build());
   }

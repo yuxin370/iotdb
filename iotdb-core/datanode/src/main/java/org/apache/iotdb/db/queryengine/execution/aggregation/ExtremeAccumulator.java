@@ -23,7 +23,9 @@ import org.apache.tsfile.block.column.Column;
 import org.apache.tsfile.block.column.ColumnBuilder;
 import org.apache.tsfile.enums.TSDataType;
 import org.apache.tsfile.file.metadata.statistics.Statistics;
+import org.apache.tsfile.read.common.block.column.RLEColumn;
 import org.apache.tsfile.utils.BitMap;
+import org.apache.tsfile.utils.Pair;
 import org.apache.tsfile.utils.TsPrimitiveType;
 import org.apache.tsfile.write.UnSupportedDataTypeException;
 
@@ -227,6 +229,39 @@ public class ExtremeAccumulator implements Accumulator {
 
   private void addIntInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            int curValue = curPattern.getInt(0);
+            updateIntResult(curValue);
+            curIndex = curIndex - j + curPatternLength;
+            break;
+          }
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              int curValue = curPattern.getInt(j);
+              updateIntResult(curValue);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
@@ -252,6 +287,39 @@ public class ExtremeAccumulator implements Accumulator {
 
   private void addLongInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            long curValue = curPattern.getLong(0);
+            updateLongResult(curValue);
+            curIndex = curIndex - j + curPatternLength;
+            break;
+          }
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              long curValue = curPattern.getLong(j);
+              updateLongResult(curValue);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
@@ -277,6 +345,39 @@ public class ExtremeAccumulator implements Accumulator {
 
   private void addFloatInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            float curValue = curPattern.getFloat(0);
+            updateFloatResult(curValue);
+            curIndex = curIndex - j + curPatternLength;
+            break;
+          }
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              float curValue = curPattern.getFloat(0);
+              updateFloatResult(curValue);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
@@ -302,6 +403,39 @@ public class ExtremeAccumulator implements Accumulator {
 
   private void addDoubleInput(Column[] column, BitMap bitMap) {
     int count = column[0].getPositionCount();
+    if (column[1] instanceof RLEColumn) {
+      Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
+      int curIndex = 0, i = 0;
+      while (curIndex <= count) {
+        Column curPattern = patterns.getLeft()[i];
+        int curPatternLength = patterns.getRight()[i];
+        curPatternLength =
+            curIndex + curPatternLength - 1 <= count ? curPatternLength : count - curIndex + 1;
+        if (curPattern.getPositionCount() == 1) {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            double curValue = curPattern.getDouble(0);
+            updateDoubleResult(curValue);
+            curIndex = curIndex - j + curPatternLength;
+            break;
+          }
+        } else {
+          for (int j = 0; j < curPatternLength; j++, curIndex++) {
+            if (bitMap != null && !bitMap.isMarked(curIndex)) {
+              continue;
+            }
+            if (!curPattern.isNull(j)) {
+              double curValue = curPattern.getDouble(0);
+              updateDoubleResult(curValue);
+            }
+          }
+        }
+        i++;
+      }
+      return;
+    }
     for (int i = 0; i < count; i++) {
       if (bitMap != null && !bitMap.isMarked(i)) {
         continue;
