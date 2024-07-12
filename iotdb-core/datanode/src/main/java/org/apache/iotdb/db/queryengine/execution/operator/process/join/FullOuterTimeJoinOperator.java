@@ -36,6 +36,8 @@ import org.apache.tsfile.read.common.block.TsBlock;
 import org.apache.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.tsfile.utils.RamUsageEstimator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +46,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.Futures.successfulAsList;
 
 public class FullOuterTimeJoinOperator extends AbstractConsumeAllOperator {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(FullOuterTimeJoinOperator.class);
   private static final long INSTANCE_SIZE =
       RamUsageEstimator.shallowSizeOfInstance(FullOuterTimeJoinOperator.class)
           + RamUsageEstimator.shallowSizeOfInstance(TimeSelector.class);
@@ -88,6 +90,7 @@ public class FullOuterTimeJoinOperator extends AbstractConsumeAllOperator {
       List<ColumnMerger> mergers,
       TimeComparator comparator) {
     super(operatorContext, children);
+    LOGGER.info("using full outer time join");
     checkArgument(!children.isEmpty(), "child size of TimeJoinOperator should be larger than 0");
     this.inputIndex = new int[this.inputOperatorsCount];
     this.shadowInputIndex = new int[this.inputOperatorsCount];

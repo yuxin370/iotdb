@@ -29,12 +29,16 @@ import org.apache.tsfile.utils.BitMap;
 import org.apache.tsfile.utils.BytesUtils;
 import org.apache.tsfile.utils.Pair;
 import org.apache.tsfile.write.UnSupportedDataTypeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class VarianceAccumulator implements Accumulator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(VarianceAccumulator.class);
+
   public enum VarianceType {
     STDDEV_POP,
     STDDEV_SAMP,
@@ -218,7 +222,7 @@ public class VarianceAccumulator implements Accumulator {
     if (columns[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= size) {
+      while (curIndex < size) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -279,7 +283,7 @@ public class VarianceAccumulator implements Accumulator {
     if (columns[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= size) {
+      while (curIndex < size) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -340,7 +344,7 @@ public class VarianceAccumulator implements Accumulator {
     if (columns[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= size) {
+      while (curIndex < size) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -402,7 +406,7 @@ public class VarianceAccumulator implements Accumulator {
     if (columns[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) columns[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= size) {
+      while (curIndex < size) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =

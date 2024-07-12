@@ -232,7 +232,7 @@ public class ExtremeAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -290,7 +290,7 @@ public class ExtremeAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -348,7 +348,7 @@ public class ExtremeAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -406,7 +406,7 @@ public class ExtremeAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =

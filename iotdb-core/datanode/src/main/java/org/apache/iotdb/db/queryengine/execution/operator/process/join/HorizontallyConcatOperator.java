@@ -32,6 +32,8 @@ import org.apache.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.tsfile.read.common.block.column.TimeColumn;
 import org.apache.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.tsfile.utils.RamUsageEstimator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -45,7 +47,7 @@ import static com.google.common.base.Preconditions.checkArgument;
  * <p>HorizontallyConcat(A,B) is: [1, 1.0, true; 2, 2.0, false]
  */
 public class HorizontallyConcatOperator extends AbstractConsumeAllOperator {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(HorizontallyConcatOperator.class);
   private static final long INSTANCE_SIZE =
       RamUsageEstimator.shallowSizeOfInstance(HorizontallyConcatOperator.class);
 

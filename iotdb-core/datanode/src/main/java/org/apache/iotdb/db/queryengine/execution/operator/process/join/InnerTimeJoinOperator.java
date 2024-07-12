@@ -35,6 +35,8 @@ import org.apache.tsfile.read.common.block.TsBlock;
 import org.apache.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.tsfile.read.common.block.column.TimeColumnBuilder;
 import org.apache.tsfile.utils.RamUsageEstimator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +47,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.Futures.successfulAsList;
 
 public class InnerTimeJoinOperator implements ProcessOperator {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(InnerTimeJoinOperator.class);
   private static final long INSTANCE_SIZE =
       RamUsageEstimator.shallowSizeOfInstance(InnerTimeJoinOperator.class);
 

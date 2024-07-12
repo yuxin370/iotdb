@@ -28,10 +28,13 @@ import org.apache.tsfile.read.common.block.column.RLEColumn;
 import org.apache.tsfile.utils.BitMap;
 import org.apache.tsfile.utils.Pair;
 import org.apache.tsfile.write.UnSupportedDataTypeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class AvgAccumulator implements Accumulator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AvgAccumulator.class);
 
   private final TSDataType seriesDataType;
   private long countValue;
@@ -175,7 +178,7 @@ public class AvgAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -230,7 +233,7 @@ public class AvgAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -286,7 +289,7 @@ public class AvgAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
@@ -341,7 +344,7 @@ public class AvgAccumulator implements Accumulator {
     if (column[1] instanceof RLEColumn) {
       Pair<Column[], int[]> patterns = ((RLEColumn) column[1]).getVisibleColumns();
       int curIndex = 0, i = 0;
-      while (curIndex <= count) {
+      while (curIndex < count) {
         Column curPattern = patterns.getLeft()[i];
         int curPatternLength = patterns.getRight()[i];
         curPatternLength =
